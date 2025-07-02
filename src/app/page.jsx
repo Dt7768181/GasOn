@@ -91,6 +91,9 @@ export default function BookingPage() {
     try {
       const orderId = `GAS-${Math.floor(10000 + Math.random() * 90000)}`;
 
+      // Temporarily store the order ID to be picked up by the success page
+      localStorage.setItem("latestOrderId", orderId);
+
       await addDoc(collection(db, "bookings"), {
         id: orderId,
         userId: userId,
