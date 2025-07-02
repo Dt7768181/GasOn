@@ -103,11 +103,11 @@ export default function BookingPage() {
       });
 
       toast({
-        title: "Booking Successful!",
-        description: `Your order ${orderId} has been placed.`,
+        title: "Booking Created!",
+        description: `Redirecting to payment for order ${orderId}.`,
       });
 
-      router.push("/history");
+      router.push(`/payment?orderId=${orderId}`);
     } catch (error) {
       console.error("Error creating booking: ", error);
       toast({
