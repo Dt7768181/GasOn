@@ -16,9 +16,11 @@ import {
   CircleCheck,
   Truck,
   PackageCheck,
-  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { db } from "../../../firebase-config.js";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
 
 const statusSteps = [
   {
@@ -46,11 +48,47 @@ const statusSteps = [
 export default function TrackPage() {
   const [bookingId, setBookingId] = useState("");
   const [currentStatus, setCurrentStatus] = useState(null);
+  const [bookingDetails, setBookingDetails] = useState(null);
+  const { toast } = useToast();
 
-  const handleTrack = () => {
-    // Mock tracking logic
-    if (bookingId) {
-      setCurrentStatus("Out for Delivery");
+  const handleTrack = async () => {
+    if (!bookingId) {
+      toast({
+        title: "Error",
+        description: "Please enter a booking ID.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setBookingDetails(null);
+    setCurrentStatus(null);
+
+    try {
+      const q = query(
+        collection(db, "bookings"),
+        where("id", "==", bookingId.trim())
+      );
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        toast({
+          title: "Not Found",
+          description: `No booking found with ID: ${bookingId}`,
+          variant: "destructive",
+        });
+      } else {
+        const bookingData = querySnapshot.docs[0].data();
+        setBookingDetails(bookingData);
+        setCurrentStatus(bookingData.status);
+      }
+    } catch (error) {
+      console.error("Error tracking booking:", error);
+      toast({
+        title: "Error",
+        description: "An error occurred while tracking the booking.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -63,7 +101,9 @@ export default function TrackPage() {
       <div className="flex-1 space-y-8 p-4 md:p-8">
         <div className="flex items-center justify-between space-y-2">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Track Your Order</h1>
+            <h1 className="text-3xl font-bold tracking-tight">
+              Track Your Order
+            </h1>
             <p className="text-muted-foreground">
               Enter your booking ID to see the latest status of your delivery.
             </p>
@@ -86,12 +126,25 @@ export default function TrackPage() {
           </CardContent>
         </Card>
 
-        {currentStatus && (
+        {currentStatus && bookingDetails && (
           <Card>
             <CardHeader>
               <CardTitle>Booking Status</CardTitle>
               <CardDescription>
-                Booking ID: <span className="font-semibold">{bookingId}</span>
+                <p>
+                  Booking ID:{" "}
+                  <span className="font-semibold">{bookingDetails.id}</span>
+                </p>
+                <p>
+                  Customer:{" "}
+                  <span className="font-semibold">
+                    {bookingDetails.customer}
+                  </span>
+                </p>
+                <p>
+                  Date:{" "}
+                  <span className="font-semibold">{bookingDetails.date}</span>
+                </p>
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -118,7 +171,9 @@ export default function TrackPage() {
                           <h3
                             className={cn(
                               "font-semibold",
-                              isActive ? "text-foreground" : "text-muted-foreground"
+                              isActive
+                                ? "text-foreground"
+                                : "text-muted-foreground"
                             )}
                           >
                             {step.name}
