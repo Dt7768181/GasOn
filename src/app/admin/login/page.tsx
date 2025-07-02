@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,6 +51,11 @@ export default function AdminLoginPage() {
           <Button className="w-full mt-6" onClick={handleLogin}>
             Log In
           </Button>
+           <div className="mt-4 text-center text-xs">
+            <Link href="/login" className="underline text-muted-foreground hover:text-primary">
+              For Customers
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>
