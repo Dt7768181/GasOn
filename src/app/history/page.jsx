@@ -102,12 +102,12 @@ export default function HistoryPage() {
         const bookingData = bookingDoc.data();
 
         // Check if the booking status allows cancellation
-        if (!["Pending", "Confirmed"].includes(bookingData.status)) {
+        if (!["Pending", "Booked", "Confirmed"].includes(bookingData.status)) {
           throw new Error("This booking cannot be cancelled.");
         }
 
-        // If the order was confirmed, restock the cylinder
-        if (bookingData.status === "Confirmed") {
+        // If the order was confirmed or booked, restock the cylinder
+        if (["Confirmed", "Booked"].includes(bookingData.status)) {
           if (!bookingData.cylinderId) {
             console.warn(
               `Cannot restock for order ${selectedOrder.id}: missing cylinderId.`
@@ -163,6 +163,7 @@ export default function HistoryPage() {
       case "Cancelled":
       case "Cancelled - Out of Stock":
         return "destructive";
+      case "Booked":
       case "Confirmed":
         return "secondary";
       case "Out for Delivery":
@@ -178,7 +179,7 @@ export default function HistoryPage() {
   };
 
   const canBeCancelled = (status) => {
-    return ["Pending", "Confirmed"].includes(status);
+    return ["Pending", "Booked", "Confirmed"].includes(status);
   };
 
   return (
