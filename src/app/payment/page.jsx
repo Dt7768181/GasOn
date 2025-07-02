@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -144,6 +145,7 @@ export default function PaymentPage() {
                 {bookingDetails && buttonId && (
                   <form>
                     <Script
+                      key={buttonId}
                       src="https://checkout.razorpay.com/v1/payment-button.js"
                       data-payment_button_id={buttonId}
                       async
