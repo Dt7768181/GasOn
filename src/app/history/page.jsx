@@ -2,8 +2,10 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -26,6 +28,7 @@ import {
   where,
   getDocs,
 } from "firebase/firestore";
+import { cn } from "@/lib/utils";
 
 export default function HistoryPage() {
   const [orders, setOrders] = React.useState([]);
@@ -67,6 +70,19 @@ export default function HistoryPage() {
 
     fetchOrders();
   }, []);
+
+  const getBadgeVariant = (status) => {
+    switch (status) {
+      case "Pending":
+        return "destructive";
+      case "Confirmed":
+        return "secondary";
+      case "Out for Delivery":
+        return "default";
+      default:
+        return "default";
+    }
+  };
 
   return (
     <AppShell>
@@ -118,15 +134,21 @@ export default function HistoryPage() {
                         ₹{order.amount.toFixed(2)}
                       </TableCell>
                       <TableCell className="text-center">
-                        <Badge
-                          variant={
-                            order.status === "Pending"
-                              ? "destructive"
-                              : "default"
-                          }
-                        >
-                          {order.status}
-                        </Badge>
+                        {order.status === "Pending" ? (
+                          <Button asChild size="sm">
+                            <Link href={`/payment?orderId=${order.id}`}>Pay Now</Link>
+                          </Button>
+                        ) : (
+                          <Badge
+                            variant={getBadgeVariant(order.status)}
+                            className={cn(
+                                order.status === "Delivered" &&
+                                "bg-accent text-accent-foreground hover:bg-accent/80"
+                            )}
+                          >
+                            {order.status}
+                          </Badge>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
