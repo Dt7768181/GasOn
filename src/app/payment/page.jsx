@@ -57,7 +57,7 @@ export default function PaymentPage() {
           setBookingDetails(null);
         } else {
           const bookingDoc = querySnapshot.docs[0].data();
-          setBookingDetails(bookingDoc.data());
+          setBookingDetails(bookingDoc);
         }
       } catch (error) {
         console.error("Error fetching booking:", error);
