@@ -47,38 +47,60 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [userRole, setUserRole] = React.useState<string | null>(null);
+  const [userName, setUserName] = React.useState('');
+  const [userEmail, setUserEmail] = React.useState('');
+  const [isMounted, setIsMounted] = React.useState(false);
 
-  React.useEffect(() => {
+  const loadUserDataAndAuth = React.useCallback(() => {
     const role = localStorage.getItem("userRole");
     setUserRole(role);
 
-    // Redirect logic for protected routes
+    if (role === 'admin') {
+      const storedProfile = localStorage.getItem('adminProfile');
+      const profile = storedProfile ? JSON.parse(storedProfile) : { fullName: 'Admin User' };
+      setUserName(profile.fullName);
+      setUserEmail('admin@gason.com');
+    } else if (role === 'customer') {
+      const storedProfile = localStorage.getItem('customerProfile');
+      const profile = storedProfile ? JSON.parse(storedProfile) : { fullName: 'Customer User' };
+      setUserName(profile.fullName);
+      setUserEmail('customer@example.com');
+    }
+
+    // Auth redirection logic
     if (!role) {
       router.push('/login');
     } else if (role === 'customer' && pathname.startsWith('/admin')) {
-      router.push('/'); // customer trying to access admin
+      router.push('/');
     } else if (role === 'admin' && !pathname.startsWith('/admin') && pathname !== '/profile') {
-      // admin trying to access customer pages, redirect to admin dashboard
       router.push('/admin');
     }
-
   }, [pathname, router]);
+
+  React.useEffect(() => {
+    setIsMounted(true);
+    loadUserDataAndAuth();
+
+    // Listen for profile updates to reload data
+    window.addEventListener('profileUpdated', loadUserDataAndAuth);
+
+    return () => {
+      window.removeEventListener('profileUpdated', loadUserDataAndAuth);
+    };
+  }, [loadUserDataAndAuth]);
 
   const handleLogout = () => {
     const role = localStorage.getItem("userRole");
     localStorage.removeItem("userRole");
     if (role === 'admin') {
+      localStorage.removeItem("adminProfile");
       router.push('/admin/login');
     } else {
+      localStorage.removeItem("customerProfile");
       router.push('/login');
     }
+    setUserRole(null);
   };
-
-  const [isMounted, setIsMounted] = React.useState(false);
-
-  React.useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   // Render nothing until client-side hydration is complete and role is determined
   if (!isMounted || !userRole) {
@@ -87,10 +109,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   
   const filteredMenuItems = menuItems.filter(item => item.role === userRole);
   
-  const isAdmin = userRole === 'admin';
-  const userName = isAdmin ? 'Admin User' : 'Customer User';
-  const userEmail = isAdmin ? 'admin@gason.com' : 'customer@example.com';
-
   return (
     <SidebarProvider>
       <Sidebar>
@@ -135,6 +153,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium leading-none">{userName}</p>
+
                   <p className="text-xs leading-none text-muted-foreground">
                     {userEmail}
                   </p>

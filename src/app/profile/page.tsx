@@ -40,49 +40,67 @@ const adminProfileSchema = z.object({
   username: z.string().min(2, 'Username is required.'),
 });
 
+const defaultCustomerProfile = {
+  fullName: 'Customer User',
+  phone: '9876543210',
+  address1: '123, Sunshine Apartments',
+  address2: 'Main Street',
+  city: 'Mumbai',
+  pincode: '400001',
+};
+
+const defaultAdminProfile = {
+  fullName: 'Admin User',
+  username: 'admin',
+};
+
 export default function ProfilePage() {
   const { toast } = useToast();
   const [userRole, setUserRole] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    const role = localStorage.getItem('userRole');
-    setUserRole(role);
-  }, []);
-
   const customerForm = useForm<z.infer<typeof profileSchema>>({
     resolver: zodResolver(profileSchema),
-    defaultValues: {
-      fullName: 'Customer User',
-      phone: '9876543210',
-      address1: '123, Sunshine Apartments',
-      address2: 'Main Street',
-      city: 'Mumbai',
-      pincode: '400001',
-    },
+    defaultValues: defaultCustomerProfile,
   });
 
   const adminForm = useForm<z.infer<typeof adminProfileSchema>>({
     resolver: zodResolver(adminProfileSchema),
-    defaultValues: {
-      fullName: 'Admin User',
-      username: 'admin',
-    },
+    defaultValues: defaultAdminProfile,
   });
 
+  React.useEffect(() => {
+    const role = localStorage.getItem('userRole');
+    setUserRole(role);
+    
+    if (role === 'customer') {
+      const storedProfile = localStorage.getItem('customerProfile');
+      if (storedProfile) {
+        customerForm.reset(JSON.parse(storedProfile));
+      }
+    } else if (role === 'admin') {
+      const storedProfile = localStorage.getItem('adminProfile');
+      if (storedProfile) {
+        adminForm.reset(JSON.parse(storedProfile));
+      }
+    }
+  }, [customerForm, adminForm]);
+
   function onCustomerSubmit(values: z.infer<typeof profileSchema>) {
-    console.log(values);
+    localStorage.setItem('customerProfile', JSON.stringify(values));
     toast({
       title: 'Profile Updated',
       description: 'Your information has been saved successfully.',
     });
+    window.dispatchEvent(new Event("profileUpdated"));
   }
 
   function onAdminSubmit(values: z.infer<typeof adminProfileSchema>) {
-    console.log(values);
+    localStorage.setItem('adminProfile', JSON.stringify(values));
     toast({
       title: 'Profile Updated',
       description: 'Your information has been saved successfully.',
     });
+    window.dispatchEvent(new Event("profileUpdated"));
   }
 
   if (!userRole) {
