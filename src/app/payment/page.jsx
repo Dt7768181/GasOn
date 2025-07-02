@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -14,7 +15,14 @@ import {
 } from "@/components/ui/card";
 import { CreditCard, IndianRupee } from "lucide-react";
 import { db } from "../../../firebase-config.js";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  doc,
+  updateDoc,
+} from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -23,6 +31,7 @@ export default function PaymentPage() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const [bookingDetails, setBookingDetails] = React.useState(null);
+  const [bookingDocId, setBookingDocId] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
 
   const orderId = searchParams.get("orderId");
@@ -55,7 +64,9 @@ export default function PaymentPage() {
           });
           setBookingDetails(null);
         } else {
-          setBookingDetails(querySnapshot.docs[0].data());
+          const bookingDoc = querySnapshot.docs[0];
+          setBookingDetails(bookingDoc.data());
+          setBookingDocId(bookingDoc.id);
         }
       } catch (error) {
         console.error("Error fetching booking:", error);
@@ -71,14 +82,40 @@ export default function PaymentPage() {
 
     fetchBooking();
   }, [orderId, router, toast]);
-  
-  const handlePayment = () => {
-    // This is where Razorpay/Stripe integration would go.
-    // For now, we'll simulate a successful payment.
-    toast({
-      title: "Payment Gateway not Integrated",
-      description: "This is a placeholder for the payment flow.",
-    });
+
+  const handlePayment = async () => {
+    if (!bookingDocId) {
+      toast({
+        title: "Error",
+        description: "Could not process payment. Booking details not found.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // This is where a real payment gateway integration would go.
+    // For now, we'll simulate a successful payment and update the status.
+    try {
+      const bookingRef = doc(db, "bookings", bookingDocId);
+      await updateDoc(bookingRef, {
+        status: "Confirmed",
+      });
+
+      toast({
+        title: "Payment Successful!",
+        description: "Your order has been confirmed and is being processed.",
+      });
+
+      router.push("/history");
+    } catch (error) {
+      console.error("Error updating booking status:", error);
+      toast({
+        title: "Payment Failed",
+        description:
+          "There was an issue confirming your order. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -116,33 +153,37 @@ export default function PaymentPage() {
                     <span>Cylinder Type:</span>
                     <span className="font-semibold">{bookingDetails.type}</span>
                   </div>
-                   <div className="flex justify-between items-center text-lg">
+                  <div className="flex justify-between items-center text-lg">
                     <span>Delivery Date:</span>
-                    <span className="font-semibold">{bookingDetails.date}</span>
+                    <span className="font-semibold">
+                      {bookingDetails.date}
+                    </span>
                   </div>
-                   <div className="flex justify-between items-center text-lg">
+                  <div className="flex justify-between items-center text-lg">
                     <span>Time Slot:</span>
-                    <span className="font-semibold">{bookingDetails.time}</span>
+                    <span className="font-semibold">
+                      {bookingDetails.time}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center pt-4 border-t text-2xl font-bold">
                     <span>Total Amount:</span>
-                     <div className="flex items-center">
-                       <IndianRupee className="h-6 w-6 mr-1" />
-                       <span>{bookingDetails.amount.toFixed(2)}</span>
+                    <div className="flex items-center">
+                      <IndianRupee className="h-6 w-6 mr-1" />
+                      <span>{bookingDetails.amount.toFixed(2)}</span>
                     </div>
                   </div>
                 </>
               ) : (
-                 <p className="text-center text-muted-foreground py-8">
-                   Could not load order details.
+                <p className="text-center text-muted-foreground py-8">
+                  Could not load order details.
                 </p>
               )}
             </CardContent>
             <CardFooter>
-              <Button 
-                className="w-full" 
-                size="lg" 
-                onClick={handlePayment} 
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={handlePayment}
                 disabled={loading || !bookingDetails}
               >
                 <CreditCard className="mr-2 h-5 w-5" />
