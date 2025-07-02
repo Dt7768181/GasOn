@@ -12,6 +12,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Table,
   TableBody,
   TableCell,
@@ -27,7 +35,16 @@ import {
 } from "@/components/ui/tabs";
 import { FilePlus2, PlusCircle } from "lucide-react";
 import { db } from "../../../firebase-config.js";
-import { collection, query, getDocs, orderBy } from "firebase/firestore";
+import {
+  collection,
+  query,
+  getDocs,
+  orderBy,
+  doc,
+  updateDoc,
+} from "firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 const cylinders = [
   { id: 1, type: "5kg Cylinder", stock: 150, price: 450 },
@@ -35,9 +52,17 @@ const cylinders = [
   { id: 3, type: "19kg Cylinder", stock: 85, price: 2200 },
 ];
 
+const statusSteps = [
+  "Pending",
+  "Confirmed",
+  "Out for Delivery",
+  "Delivered",
+];
+
 export default function AdminPage() {
   const [bookings, setBookings] = React.useState([]);
   const [loadingBookings, setLoadingBookings] = React.useState(true);
+  const { toast } = useToast();
 
   React.useEffect(() => {
     const fetchBookings = async () => {
@@ -62,6 +87,46 @@ export default function AdminPage() {
 
     fetchBookings();
   }, []);
+
+  const handleStatusUpdate = async (docId, newStatus) => {
+    try {
+      const bookingRef = doc(db, "bookings", docId);
+      await updateDoc(bookingRef, {
+        status: newStatus,
+      });
+
+      setBookings((prevBookings) =>
+        prevBookings.map((booking) =>
+          booking.docId === docId ? { ...booking, status: newStatus } : booking
+        )
+      );
+
+      toast({
+        title: "Status Updated",
+        description: `Booking status has been changed to ${newStatus}.`,
+      });
+    } catch (error) {
+      console.error("Error updating status:", error);
+      toast({
+        title: "Update Failed",
+        description: "Could not update the booking status.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getBadgeVariant = (status) => {
+    switch (status) {
+      case "Pending":
+        return "destructive";
+      case "Confirmed":
+        return "secondary";
+      case "Out for Delivery":
+        return "default";
+      default:
+        return "default";
+    }
+  };
 
   return (
     <AppShell>
@@ -111,7 +176,7 @@ export default function AdminPage() {
                         <TableHead>Time Slot</TableHead>
                         <TableHead>Type</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead>Action</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -124,19 +189,40 @@ export default function AdminPage() {
                           <TableCell>{booking.type}</TableCell>
                           <TableCell>
                             <Badge
-                              variant={
-                                booking.status === "Pending"
-                                  ? "destructive"
-                                  : "default"
-                              }
+                              variant={getBadgeVariant(booking.status)}
+                              className={cn(
+                                booking.status === "Delivered" &&
+                                  "bg-accent text-accent-foreground hover:bg-accent/80"
+                              )}
                             >
                               {booking.status}
                             </Badge>
                           </TableCell>
-                          <TableCell>
-                            <Button variant="outline" size="sm">
-                              Manage
-                            </Button>
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm">
+                                  Manage
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>
+                                  Change Status
+                                </DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                {statusSteps.map((status) => (
+                                  <DropdownMenuItem
+                                    key={status}
+                                    onClick={() =>
+                                      handleStatusUpdate(booking.docId, status)
+                                    }
+                                    disabled={booking.status === status}
+                                  >
+                                    {status}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                         </TableRow>
                       ))}
