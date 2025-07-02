@@ -45,7 +45,7 @@ const cylinderTypes = [
 
 export default function BookingPage() {
   const [selectedCylinder, setSelectedCylinder] = React.useState("14.2kg");
-  const [date, setDate] = React.useState<Date | undefined>(new Date());
+  const [date, setDate] = React.useState(new Date());
 
   return (
     <AppShell>

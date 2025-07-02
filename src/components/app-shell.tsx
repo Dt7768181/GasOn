@@ -43,10 +43,10 @@ const menuItems = [
   { href: "/admin", label: "Admin Dashboard", icon: LayoutDashboard, role: "admin" },
 ];
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [userRole, setUserRole] = React.useState<string | null>(null);
+  const [userRole, setUserRole] = React.useState(null);
   const [userName, setUserName] = React.useState('');
   const [userEmail, setUserEmail] = React.useState('');
   const [isMounted, setIsMounted] = React.useState(false);

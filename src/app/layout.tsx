@@ -1,17 +1,14 @@
-import type { Metadata } from "next";
 import { Toaster } from "@/components/ui/toaster";
 import "./globals.css";
 
-export const metadata: Metadata = {
+export const metadata = {
   title: "GasOn",
   description: "Your reliable gas cylinder delivery service.",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>

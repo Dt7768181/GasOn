@@ -20,13 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type Status = "Pending" | "Confirmed" | "Out for Delivery" | "Delivered";
-
-const statusSteps: {
-  name: Status;
-  icon: React.ElementType;
-  description: string;
-}[] = [
+const statusSteps = [
   {
     name: "Pending",
     icon: CircleDot,
@@ -51,7 +45,7 @@ const statusSteps: {
 
 export default function TrackPage() {
   const [bookingId, setBookingId] = useState("");
-  const [currentStatus, setCurrentStatus] = useState<Status | null>(null);
+  const [currentStatus, setCurrentStatus] = useState(null);
 
   const handleTrack = () => {
     // Mock tracking logic

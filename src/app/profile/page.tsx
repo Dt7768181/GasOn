@@ -56,14 +56,14 @@ const defaultAdminProfile = {
 
 export default function ProfilePage() {
   const { toast } = useToast();
-  const [userRole, setUserRole] = React.useState<string | null>(null);
+  const [userRole, setUserRole] = React.useState(null);
 
-  const customerForm = useForm<z.infer<typeof profileSchema>>({
+  const customerForm = useForm({
     resolver: zodResolver(profileSchema),
     defaultValues: defaultCustomerProfile,
   });
 
-  const adminForm = useForm<z.infer<typeof adminProfileSchema>>({
+  const adminForm = useForm({
     resolver: zodResolver(adminProfileSchema),
     defaultValues: defaultAdminProfile,
   });
@@ -85,7 +85,7 @@ export default function ProfilePage() {
     }
   }, [customerForm, adminForm]);
 
-  function onCustomerSubmit(values: z.infer<typeof profileSchema>) {
+  function onCustomerSubmit(values) {
     localStorage.setItem('customerProfile', JSON.stringify(values));
     toast({
       title: 'Profile Updated',
@@ -94,7 +94,7 @@ export default function ProfilePage() {
     window.dispatchEvent(new Event("profileUpdated"));
   }
 
-  function onAdminSubmit(values: z.infer<typeof adminProfileSchema>) {
+  function onAdminSubmit(values) {
     localStorage.setItem('adminProfile', JSON.stringify(values));
     toast({
       title: 'Profile Updated',

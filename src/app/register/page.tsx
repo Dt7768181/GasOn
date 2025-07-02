@@ -35,7 +35,7 @@ const registerSchema = z.object({
 
 export default function RegisterPage() {
   const router = useRouter();
-  const form = useForm<z.infer<typeof registerSchema>>({
+  const form = useForm({
     resolver: zodResolver(registerSchema),
     defaultValues: {
       fullName: "",
@@ -47,7 +47,7 @@ export default function RegisterPage() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof registerSchema>) {
+  function onSubmit(values) {
     console.log(values);
     // Handle registration logic here
     // Simulate login after registration
