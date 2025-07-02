@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -27,17 +28,24 @@ import { doc, setDoc } from "firebase/firestore";
 import { db } from "../../../firebase-config.js";
 import { useToast } from "@/hooks/use-toast";
 
-const registerSchema = z.object({
-  fullName: z.string().min(2, "Full name must be at least 2 characters."),
-  phone: z
-    .string()
-    .regex(/^\d{10}$/, "Please enter a valid 10-digit phone number."),
-  email: z.string().email("Please enter a valid email address."),
-  address1: z.string().min(5, "Address line 1 is required."),
-  address2: z.string().optional(),
-  city: z.string().min(2, "City is required."),
-  pincode: z.string().regex(/^\d{6}$/, "Please enter a valid 6-digit pincode."),
-});
+const registerSchema = z
+  .object({
+    fullName: z.string().min(2, "Full name must be at least 2 characters."),
+    phone: z
+      .string()
+      .regex(/^\d{10}$/, "Please enter a valid 10-digit phone number."),
+    email: z.string().email("Please enter a valid email address."),
+    password: z.string().min(6, "Password must be at least 6 characters."),
+    confirmPassword: z.string(),
+    address1: z.string().min(5, "Address line 1 is required."),
+    address2: z.string().optional(),
+    city: z.string().min(2, "City is required."),
+    pincode: z.string().regex(/^\d{6}$/, "Please enter a valid 6-digit pincode."),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -48,6 +56,8 @@ export default function RegisterPage() {
       fullName: "",
       phone: "",
       email: "",
+      password: "",
+      confirmPassword: "",
       address1: "",
       address2: "",
       city: "",
@@ -57,19 +67,13 @@ export default function RegisterPage() {
 
   async function onSubmit(values) {
     try {
-      await setDoc(doc(db, "customers", values.phone), {
-        fullName: values.fullName,
-        phone: values.phone,
-        email: values.email,
-        address1: values.address1,
-        address2: values.address2,
-        city: values.city,
-        pincode: values.pincode,
-      });
+      // In a real app, you would hash the password here.
+      const { confirmPassword, ...customerData } = values;
+      await setDoc(doc(db, "customers", customerData.phone), customerData);
 
-      localStorage.setItem("customerProfile", JSON.stringify(values));
+      localStorage.setItem("customerProfile", JSON.stringify(customerData));
       localStorage.setItem("userRole", "customer");
-      localStorage.setItem("userId", values.phone);
+      localStorage.setItem("userId", customerData.phone);
 
       router.push("/");
       router.refresh();
@@ -140,6 +144,34 @@ export default function RegisterPage() {
                   </FormItem>
                 )}
               />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <Input type="password" placeholder="••••••••" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Confirm Password</FormLabel>
+                      <FormControl>
+                        <Input type="password" placeholder="••••••••" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               <FormField
                 control={form.control}
                 name="address1"
