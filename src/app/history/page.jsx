@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -24,7 +25,6 @@ import {
   query,
   where,
   getDocs,
-  orderBy,
 } from "firebase/firestore";
 
 export default function HistoryPage() {
@@ -42,14 +42,21 @@ export default function HistoryPage() {
       try {
         const q = query(
           collection(db, "bookings"),
-          where("userId", "==", userId),
-          orderBy("createdAt", "desc")
+          where("userId", "==", userId)
         );
         const querySnapshot = await getDocs(q);
         const fetchedOrders = querySnapshot.docs.map((doc) => ({
           ...doc.data(),
           docId: doc.id,
         }));
+        
+        // Sort orders by creation date on the client-side
+        fetchedOrders.sort((a, b) => {
+          const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : 0;
+          const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : 0;
+          return dateB - dateA;
+        });
+        
         setOrders(fetchedOrders);
       } catch (error) {
         console.error("Error fetching orders:", error);
