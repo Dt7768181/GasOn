@@ -25,38 +25,48 @@ import { Label } from "@/components/ui/label";
 import { Flame } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "../../firebase-config.js";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-
-const cylinderTypes = [
-  {
-    id: "5kg",
-    name: "5kg Cylinder",
-    price: "450",
-    deliveryCharge: 50,
-    description: "Ideal for small families and bachelors.",
-  },
-  {
-    id: "14.2kg",
-    name: "14.2kg Cylinder",
-    price: "1100",
-    deliveryCharge: 100,
-    description: "Standard household cylinder for regular use.",
-  },
-  {
-    id: "19kg",
-    name: "19kg Cylinder",
-    price: "2200",
-    deliveryCharge: 500,
-    description: "Commercial size, suitable for restaurants.",
-  },
-];
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+  getDocs,
+} from "firebase/firestore";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 export default function BookingPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const [cylinderTypes, setCylinderTypes] = React.useState([]);
+  const [loadingCylinders, setLoadingCylinders] = React.useState(true);
   const [selectedCylinder, setSelectedCylinder] = React.useState("14.2kg");
   const [date, setDate] = React.useState(new Date());
   const [timeSlot, setTimeSlot] = React.useState("");
+
+  React.useEffect(() => {
+    const fetchCylinders = async () => {
+      setLoadingCylinders(true);
+      try {
+        const querySnapshot = await getDocs(collection(db, "cylinders"));
+        const fetchedCylinders = querySnapshot.docs.map((doc) => ({
+          ...doc.data(),
+          id: doc.id,
+        }));
+        fetchedCylinders.sort((a,b) => a.price - b.price);
+        setCylinderTypes(fetchedCylinders);
+      } catch (error) {
+        console.error("Error fetching cylinders:", error);
+        toast({
+          title: "Error",
+          description: "Could not load cylinder types.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingCylinders(false);
+      }
+    };
+    fetchCylinders();
+  }, [toast]);
 
   const handleBooking = async () => {
     const userId = localStorage.getItem("userId");
@@ -85,14 +95,21 @@ export default function BookingPage() {
     const cylinderDetails = cylinderTypes.find(
       (c) => c.id === selectedCylinder
     );
+
+    if (!cylinderDetails || cylinderDetails.stock <= 0) {
+      toast({
+        title: "Out of Stock",
+        description: "This cylinder type is currently unavailable.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const totalAmount =
       parseFloat(cylinderDetails.price) + cylinderDetails.deliveryCharge;
 
     try {
       const orderId = `GAS-${Math.floor(10000 + Math.random() * 90000)}`;
-
-      // Temporarily store the order ID to be picked up by the success page
-      localStorage.setItem("latestOrderId", orderId);
 
       await addDoc(collection(db, "bookings"), {
         id: orderId,
@@ -102,6 +119,7 @@ export default function BookingPage() {
         date: date.toISOString().split("T")[0],
         time: timeSlot,
         type: cylinderDetails.name,
+        cylinderId: selectedCylinder,
         amount: totalAmount,
         status: "Pending",
         createdAt: serverTimestamp(),
@@ -153,44 +171,66 @@ export default function BookingPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <RadioGroup
-                  value={selectedCylinder}
-                  onValueChange={setSelectedCylinder}
-                  className="grid gap-6 md:grid-cols-3"
-                >
-                  {cylinderTypes.map((type) => (
-                    <Label
-                      key={type.id}
-                      htmlFor={type.id}
-                      className="cursor-pointer"
-                    >
-                      <Card
-                        className={`ring-2 ${
-                          selectedCylinder === type.id
-                            ? "ring-primary"
-                            : "ring-transparent"
-                        }`}
+                {loadingCylinders ? (
+                  <div className="grid gap-6 md:grid-cols-3">
+                    <Skeleton className="h-40 w-full" />
+                    <Skeleton className="h-40 w-full" />
+                    <Skeleton className="h-40 w-full" />
+                  </div>
+                ) : (
+                  <RadioGroup
+                    value={selectedCylinder}
+                    onValueChange={setSelectedCylinder}
+                    className="grid gap-6 md:grid-cols-3"
+                  >
+                    {cylinderTypes.map((type) => (
+                      <Label
+                        key={type.id}
+                        htmlFor={type.id}
+                        className={cn(
+                          "cursor-pointer",
+                          type.stock <= 0 && "cursor-not-allowed opacity-50"
+                        )}
                       >
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                          <CardTitle className="text-lg font-medium">
-                            {type.name}
-                          </CardTitle>
-                          <RadioGroupItem
-                            value={type.id}
-                            id={type.id}
-                            className="translate-y-[-12px]"
-                          />
-                        </CardHeader>
-                        <CardContent>
-                          <div className="text-2xl font-bold">₹{type.price}</div>
-                          <p className="text-xs text-muted-foreground">
-                            {type.description}
-                          </p>
-                        </CardContent>
-                      </Card>
-                    </Label>
-                  ))}
-                </RadioGroup>
+                        <Card
+                          className={cn(
+                            "ring-2",
+                            selectedCylinder === type.id
+                              ? "ring-primary"
+                              : "ring-transparent",
+                            type.stock <= 0 && "bg-muted"
+                          )}
+                        >
+                          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-lg font-medium">
+                              {type.name}
+                            </CardTitle>
+                            <RadioGroupItem
+                              value={type.id}
+                              id={type.id}
+                              className="translate-y-[-12px]"
+                              disabled={type.stock <= 0}
+                            />
+                          </CardHeader>
+                          <CardContent>
+                            <div className="text-2xl font-bold">
+                              ₹{type.price}
+                            </div>
+                            {type.stock > 0 ? (
+                              <p className="text-xs text-muted-foreground">
+                                {type.description}
+                              </p>
+                            ) : (
+                              <p className="text-xs font-semibold text-destructive mt-2">
+                                Out of Stock
+                              </p>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </Label>
+                    ))}
+                  </RadioGroup>
+                )}
               </CardContent>
             </Card>
 
@@ -209,7 +249,8 @@ export default function BookingPage() {
                     onSelect={setDate}
                     className="rounded-md border"
                     disabled={(date) =>
-                      date < new Date(new Date().setDate(new Date().getDate() - 1))
+                      date <
+                      new Date(new Date().setDate(new Date().getDate() - 1))
                     }
                   />
                 </div>
@@ -269,9 +310,12 @@ export default function BookingPage() {
                   size="lg"
                   className="w-full mt-4"
                   onClick={handleBooking}
+                  disabled={
+                    !timeSlot || !currentCylinder || currentCylinder.stock <= 0
+                  }
                 >
                   <Flame className="mr-2 h-5 w-5" />
-                  Book Now
+                  {currentCylinder?.stock > 0 ? "Book Now" : "Out of Stock"}
                 </Button>
               </CardContent>
             </Card>

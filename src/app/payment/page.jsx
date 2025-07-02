@@ -19,7 +19,8 @@ import {
   query,
   where,
   getDocs,
-  updateDoc,
+  doc,
+  runTransaction,
 } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -60,18 +61,52 @@ export default function PaymentPage() {
           const bookingDoc = querySnapshot.docs[0];
           let bookingData = bookingDoc.data();
 
-          // If the order is pending, update its status to "Booked"
           if (bookingData.status === "Pending") {
-            await updateDoc(bookingDoc.ref, {
-              status: "Booked",
-            });
-            // Update the local data to reflect this change
-            bookingData = { ...bookingData, status: "Booked" };
-            toast({
-              title: "Booking Initiated",
-              description:
-                "Your slot is reserved. Please complete the payment.",
-            });
+            try {
+              await runTransaction(db, async (transaction) => {
+                if (!bookingData.cylinderId) {
+                  throw "Booking is missing required cylinder information.";
+                }
+
+                const bookingRef = bookingDoc.ref;
+                const cylinderRef = doc(db, "cylinders", bookingData.cylinderId);
+                const cylinderDoc = await transaction.get(cylinderRef);
+                
+                if (!cylinderDoc.exists()) {
+                  throw "Cylinder document does not exist!";
+                }
+
+                const currentStock = cylinderDoc.data().stock;
+                if (currentStock > 0) {
+                  transaction.update(cylinderRef, { stock: currentStock - 1 });
+                  transaction.update(bookingRef, { status: "Booked" });
+                } else {
+                  transaction.update(bookingRef, { status: "Cancelled - Out of Stock" });
+                  throw "Cylinder is out of stock.";
+                }
+              });
+
+              bookingData = { ...bookingData, status: "Booked" };
+              toast({
+                title: "Booking Initiated",
+                description: "Your slot is reserved. Please complete the payment.",
+              });
+
+            } catch (e) {
+                console.error("Transaction failed: ", e);
+                const errorMessage = typeof e === 'string' ? e : "Could not reserve your booking. Please try again.";
+                toast({
+                    title: "Update Failed",
+                    description: errorMessage,
+                    variant: "destructive",
+                });
+                
+                if (e === "Cylinder is out of stock.") {
+                     setBookingDetails(b => b ? {...b, status: "Cancelled - Out of Stock"} : { ...bookingData, status: "Cancelled - Out of Stock"});
+                }
+                setLoading(false);
+                return; // Stop further execution
+            }
           }
           setBookingDetails(bookingData);
         }
@@ -91,21 +126,21 @@ export default function PaymentPage() {
   }, [orderId, router, toast]);
 
   React.useEffect(() => {
-    // IMPORTANT: You need to create a separate "Payment Button" in your Razorpay
-    // dashboard for each cylinder type to ensure the correct amount is charged.
-    // The button for 5kg is working. You should create buttons for the other
-    // two sizes and replace their IDs below.
     const paymentButtonIds = {
-      "5kg Cylinder": "pl_Qo94mvwgmkGpjZ", // This one is working
-      "14.2kg Cylinder": "pl_Qo94mvwgmkGpjZ", // TODO: Replace with your 14.2kg button ID
-      "19kg Cylinder": "pl_Qo94mvwgmkGpjZ", // TODO: Replace with your 19kg button ID
+      "5kg Cylinder": "pl_Qo94mvwgmkGpjZ",
+      "14.2kg Cylinder": "pl_QpP7T5h2iFwKgh",
+      "19kg Cylinder": "pl_QpP9YqVlFvplHw",
     };
 
     if (!loading && bookingDetails && razorpayContainerRef.current) {
-      const buttonId = paymentButtonIds[bookingDetails.type];
-
-      // Ensure the container is empty before appending
       razorpayContainerRef.current.innerHTML = "";
+      
+      if (bookingDetails.status !== "Booked") {
+         razorpayContainerRef.current.innerHTML = `<p class="text-center text-destructive-foreground bg-destructive p-2 rounded-md">${bookingDetails.status}</p>`;
+         return;
+      }
+
+      const buttonId = paymentButtonIds[bookingDetails.type];
 
       if (buttonId) {
         const form = document.createElement("form");

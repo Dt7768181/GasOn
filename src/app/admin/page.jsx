@@ -42,15 +42,11 @@ import {
   orderBy,
   doc,
   updateDoc,
+  setDoc,
 } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-
-const cylinders = [
-  { id: 1, type: "5kg Cylinder", stock: 150, price: 450 },
-  { id: 2, type: "14.2kg Cylinder", stock: 320, price: 1100 },
-  { id: 3, type: "19kg Cylinder", stock: 85, price: 2200 },
-];
+import { Skeleton } from "@/components/ui/skeleton";
 
 const statusSteps = [
   "Pending",
@@ -63,6 +59,8 @@ const statusSteps = [
 export default function AdminPage() {
   const [bookings, setBookings] = React.useState([]);
   const [loadingBookings, setLoadingBookings] = React.useState(true);
+  const [cylinders, setCylinders] = React.useState([]);
+  const [loadingCylinders, setLoadingCylinders] = React.useState(true);
   const { toast } = useToast();
 
   React.useEffect(() => {
@@ -86,8 +84,69 @@ export default function AdminPage() {
       }
     };
 
+    const initializeAndFetchCylinders = async () => {
+      setLoadingCylinders(true);
+      const cylindersRef = collection(db, "cylinders");
+      try {
+        const querySnapshot = await getDocs(cylindersRef);
+        if (querySnapshot.empty) {
+          toast({
+            title: "Initializing Cylinder Stock",
+            description: "First-time setup: creating cylinder inventory.",
+          });
+          const initialCylinders = [
+            {
+              id: "5kg",
+              name: "5kg Cylinder",
+              stock: 150,
+              price: 450,
+              deliveryCharge: 50,
+              description: "Ideal for small families and bachelors.",
+            },
+            {
+              id: "14.2kg",
+              name: "14.2kg Cylinder",
+              stock: 320,
+              price: 1100,
+              deliveryCharge: 100,
+              description: "Standard household cylinder for regular use.",
+            },
+            {
+              id: "19kg",
+              name: "19kg Cylinder",
+              stock: 85,
+              price: 2200,
+              deliveryCharge: 500,
+              description: "Commercial size, suitable for restaurants.",
+            },
+          ];
+          for (const cyl of initialCylinders) {
+            await setDoc(doc(db, "cylinders", cyl.id), cyl);
+          }
+          setCylinders(initialCylinders.map((c) => ({ ...c, type: c.name })));
+        } else {
+          const fetchedCylinders = querySnapshot.docs.map((doc) => ({
+            ...doc.data(),
+            id: doc.id,
+            type: doc.data().name,
+          }));
+          setCylinders(fetchedCylinders);
+        }
+      } catch (error) {
+        console.error("Error fetching/initializing cylinders:", error);
+        toast({
+          title: "Error",
+          description: "Could not load cylinder data.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingCylinders(false);
+      }
+    };
+
     fetchBookings();
-  }, []);
+    initializeAndFetchCylinders();
+  }, [toast]);
 
   const handleStatusUpdate = async (docId, newStatus) => {
     try {
@@ -248,32 +307,40 @@ export default function AdminPage() {
                 </Button>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Cylinder Type</TableHead>
-                      <TableHead>In Stock</TableHead>
-                      <TableHead>Price</TableHead>
-                      <TableHead>Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {cylinders.map((cylinder) => (
-                      <TableRow key={cylinder.id}>
-                        <TableCell className="font-semibold">
-                          {cylinder.type}
-                        </TableCell>
-                        <TableCell>{cylinder.stock}</TableCell>
-                        <TableCell>₹{cylinder.price.toFixed(2)}</TableCell>
-                        <TableCell>
-                          <Button variant="outline" size="sm">
-                            Edit
-                          </Button>
-                        </TableCell>
+                {loadingCylinders ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Cylinder Type</TableHead>
+                        <TableHead>In Stock</TableHead>
+                        <TableHead>Price</TableHead>
+                        <TableHead>Action</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {cylinders.map((cylinder) => (
+                        <TableRow key={cylinder.id}>
+                          <TableCell className="font-semibold">
+                            {cylinder.type}
+                          </TableCell>
+                          <TableCell>{cylinder.stock}</TableCell>
+                          <TableCell>₹{cylinder.price.toFixed(2)}</TableCell>
+                          <TableCell>
+                            <Button variant="outline" size="sm">
+                              Edit
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
