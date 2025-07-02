@@ -95,6 +95,7 @@ export default function BookingPage() {
         id: orderId,
         userId: userId,
         customer: customerProfile.fullName,
+        customerEmail: customerProfile.email,
         date: date.toISOString().split("T")[0],
         time: timeSlot,
         type: cylinderDetails.name,

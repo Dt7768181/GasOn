@@ -14,6 +14,7 @@ export async function POST(req) {
   const digest = hmac.digest('hex');
 
   if (digest !== signature) {
+    console.error('Webhook signature validation failed.');
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
 
@@ -27,37 +28,35 @@ export async function POST(req) {
 
   try {
     const paymentEntity = payload.payload.payment.entity;
-    const amount = paymentEntity.amount / 100; // Amount is in paise
-    const contact = paymentEntity.contact?.replace('+91', '') || '';
+    const bookingId = paymentEntity.notes?.booking_id;
 
-    if (!contact) {
-      console.log('Webhook received without contact number. Cannot process.');
-      return NextResponse.json({ status: 'ok, no contact info' });
+    if (!bookingId) {
+      console.log('Webhook received without booking_id in notes. Cannot process.');
+      return NextResponse.json({ status: 'ok, no booking_id' });
     }
 
-    // 3. Find the corresponding booking in Firestore
+    // 3. Find the corresponding booking in Firestore using the bookingId from notes
     const bookingsRef = adminDb.collection('bookings');
     const q = bookingsRef
-      .where('userId', '==', contact)
-      .where('amount', '==', amount)
+      .where('id', '==', bookingId)
       .where('status', '==', 'Pending')
       .limit(1);
 
     const querySnapshot = await q.get();
 
     if (querySnapshot.empty) {
-      console.log(`Webhook: No pending booking found for user ${contact} with amount ${amount}`);
-      return NextResponse.json({ status: 'ok, no booking found' });
+      console.log(`Webhook: No pending booking found for bookingId ${bookingId}. It might have already been processed.`);
+      return NextResponse.json({ status: 'ok, no booking found or already processed' });
     }
     
     // 4. Update the booking status to 'Confirmed'
     const bookingDoc = querySnapshot.docs[0];
     await bookingDoc.ref.update({
       status: 'Confirmed',
-      razorpayPaymentId: paymentEntity.id, // Good practice to store this
+      razorpayPaymentId: paymentEntity.id,
     });
 
-    console.log(`Webhook: Booking ${bookingDoc.data().id} confirmed for user ${contact}.`);
+    console.log(`Webhook: Booking ${bookingId} confirmed for user ${bookingDoc.data().userId}.`);
 
     return NextResponse.json({ status: 'success' });
   } catch (error) {

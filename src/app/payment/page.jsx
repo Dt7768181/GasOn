@@ -56,8 +56,8 @@ export default function PaymentPage() {
           });
           setBookingDetails(null);
         } else {
-          const bookingDoc = querySnapshot.docs[0].data();
-          setBookingDetails(bookingDoc);
+          const bookingDoc = querySnapshot.docs[0];
+          setBookingDetails(bookingDoc.data());
         }
       } catch (error) {
         console.error("Error fetching booking:", error);
@@ -89,7 +89,16 @@ export default function PaymentPage() {
       const script = document.createElement("script");
       script.src = "https://checkout.razorpay.com/v1/payment-button.js";
       script.async = true;
-      script.dataset.payment_button_id = "pl_Qo94mvwgmkGpjZ";
+      script.setAttribute("data-payment_button_id", "pl_Qo94mvwgmkGpjZ");
+      
+      // Pass our internal booking ID in the notes for reliable webhook processing
+      script.setAttribute("data-notes.booking_id", bookingDetails.id);
+
+      // Pre-fill customer details to make checkout easier
+      script.setAttribute("data-prefill.contact", bookingDetails.userId);
+      if (bookingDetails.customerEmail) {
+        script.setAttribute("data-prefill.email", bookingDetails.customerEmail);
+      }
 
       form.appendChild(script);
       razorpayContainerRef.current.appendChild(form);
