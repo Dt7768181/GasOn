@@ -58,9 +58,6 @@ export default function PaymentPage() {
         } else {
           const bookingDoc = querySnapshot.docs[0];
           setBookingDetails(bookingDoc.data());
-          // IMPORTANT: After a successful payment, Razorpay will redirect the user.
-          // To automatically update the order status in Firestore from 'Pending' to 'Confirmed',
-          // you will need to set up a webhook in your Razorpay dashboard.
         }
       } catch (error) {
         console.error("Error fetching booking:", error);
@@ -148,7 +145,7 @@ export default function PaymentPage() {
                       src="https://checkout.razorpay.com/v1/payment-button.js"
                       data-payment_button_id="pl_Qo94mvwgmkGpjZ"
                       async
-                      key="razorpay-script"
+                      key={bookingDetails.id} 
                     />
                   </form>
                 )}
