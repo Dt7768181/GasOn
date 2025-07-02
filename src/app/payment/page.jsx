@@ -75,33 +75,33 @@ export default function PaymentPage() {
   }, [orderId, router, toast]);
 
   React.useEffect(() => {
-    if (
-      !loading &&
-      bookingDetails &&
-      bookingDetails.type === "5kg Cylinder" &&
-      razorpayContainerRef.current
-    ) {
+    // IMPORTANT: You need to create a separate "Payment Button" in your Razorpay
+    // dashboard for each cylinder type to ensure the correct amount is charged.
+    // The button for 5kg is working. You should create buttons for the other
+    // two sizes and replace their IDs below.
+    const paymentButtonIds = {
+      "5kg Cylinder": "pl_Qo94mvwgmkGpjZ", // This one is working
+      "14.2kg Cylinder": "pl_Qo94mvwgmkGpjZ", // TODO: Replace with your 14.2kg button ID
+      "19kg Cylinder": "pl_Qo94mvwgmkGpjZ", // TODO: Replace with your 19kg button ID
+    };
+
+    if (!loading && bookingDetails && razorpayContainerRef.current) {
+      const buttonId = paymentButtonIds[bookingDetails.type];
+
       // Ensure the container is empty before appending
       razorpayContainerRef.current.innerHTML = "";
 
-      const form = document.createElement("form");
-
-      const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/payment-button.js";
-      script.async = true;
-      script.setAttribute("data-payment_button_id", "pl_Qo94mvwgmkGpjZ");
-      
-      // Pass our internal booking ID in the notes for reliable webhook processing
-      script.setAttribute("data-notes.booking_id", bookingDetails.id);
-
-      // Pre-fill customer details to make checkout easier
-      script.setAttribute("data-prefill.contact", bookingDetails.userId);
-      if (bookingDetails.customerEmail) {
-        script.setAttribute("data-prefill.email", bookingDetails.customerEmail);
+      if (buttonId) {
+        const form = document.createElement("form");
+        const script = document.createElement("script");
+        script.src = "https://checkout.razorpay.com/v1/payment-button.js";
+        script.async = true;
+        script.setAttribute("data-payment_button_id", buttonId);
+        form.appendChild(script);
+        razorpayContainerRef.current.appendChild(form);
+      } else {
+        razorpayContainerRef.current.innerHTML = `<p class="text-center text-muted-foreground">Online payment is not configured for this cylinder type.</p>`;
       }
-
-      form.appendChild(script);
-      razorpayContainerRef.current.appendChild(form);
     }
   }, [loading, bookingDetails]);
 
@@ -167,23 +167,11 @@ export default function PaymentPage() {
               )}
             </CardContent>
             <CardFooter>
-              <div className="w-full flex justify-center">
+              <div
+                className="w-full flex justify-center"
+                ref={razorpayContainerRef}
+              >
                 {loading && <Skeleton className="h-12 w-full" />}
-
-                {!loading &&
-                  bookingDetails &&
-                  bookingDetails.type === "5kg Cylinder" && (
-                    <div ref={razorpayContainerRef}></div>
-                  )}
-
-                {!loading &&
-                  bookingDetails &&
-                  bookingDetails.type !== "5kg Cylinder" && (
-                    <p className="text-center text-muted-foreground">
-                      Online payment is not yet available for this cylinder
-                      type.
-                    </p>
-                  )}
               </div>
             </CardFooter>
           </Card>
