@@ -93,28 +93,42 @@ export default function HistoryPage() {
     try {
       await runTransaction(db, async (transaction) => {
         const bookingRef = doc(db, "bookings", selectedOrder.docId);
-        const cylinderRef = doc(db, "cylinders", selectedOrder.cylinderId);
+        const bookingDoc = await transaction.get(bookingRef);
 
-        const cylinderDoc = await transaction.get(cylinderRef);
-        if (!cylinderDoc.exists()) {
-          throw new Error("Cylinder not found for restocking.");
+        if (!bookingDoc.exists()) {
+          throw new Error("Booking not found.");
         }
 
-        const bookingDoc = await transaction.get(bookingRef);
-        if (
-          !bookingDoc.exists() ||
-          !["Pending", "Booked", "Confirmed"].includes(bookingDoc.data().status)
-        ) {
+        const bookingData = bookingDoc.data();
+
+        // Check if the booking status allows cancellation
+        if (!["Pending", "Confirmed"].includes(bookingData.status)) {
           throw new Error("This booking cannot be cancelled.");
         }
 
-        transaction.update(bookingRef, { status: "Cancelled" });
+        // If the order was confirmed, restock the cylinder
+        if (bookingData.status === "Confirmed") {
+          if (!bookingData.cylinderId) {
+            console.warn(
+              `Cannot restock for order ${selectedOrder.id}: missing cylinderId.`
+            );
+          } else {
+            const cylinderRef = doc(db, "cylinders", bookingData.cylinderId);
+            const cylinderDoc = await transaction.get(cylinderRef);
 
-        // Only restock if the order was confirmed and had deducted stock
-        if (["Booked", "Confirmed"].includes(bookingDoc.data().status)) {
-          const newStock = cylinderDoc.data().stock + 1;
-          transaction.update(cylinderRef, { stock: newStock });
+            if (cylinderDoc.exists()) {
+              const newStock = cylinderDoc.data().stock + 1;
+              transaction.update(cylinderRef, { stock: newStock });
+            } else {
+              console.error(
+                `Cylinder ${bookingData.cylinderId} not found for restocking order ${selectedOrder.id}.`
+              );
+            }
+          }
         }
+
+        // Always update the booking status to "Cancelled"
+        transaction.update(bookingRef, { status: "Cancelled" });
       });
 
       setOrders((prevOrders) =>
@@ -149,7 +163,6 @@ export default function HistoryPage() {
       case "Cancelled":
       case "Cancelled - Out of Stock":
         return "destructive";
-      case "Booked":
       case "Confirmed":
         return "secondary";
       case "Out for Delivery":
@@ -165,7 +178,7 @@ export default function HistoryPage() {
   };
 
   const canBeCancelled = (status) => {
-    return ["Pending", "Booked", "Confirmed"].includes(status);
+    return ["Pending", "Confirmed"].includes(status);
   };
 
   return (
