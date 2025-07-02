@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -17,6 +18,7 @@ import {
   Truck,
   PackageCheck,
   BookmarkCheck,
+  XCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { db } from "../../../firebase-config.js";
@@ -133,68 +135,86 @@ export default function TrackPage() {
         </Card>
 
         {currentStatus && bookingDetails && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Booking Status</CardTitle>
-              <CardDescription>
-                <p>
-                  Booking ID:{" "}
-                  <span className="font-semibold">{bookingDetails.id}</span>
-                </p>
-                <p>
-                  Customer:{" "}
-                  <span className="font-semibold">
-                    {bookingDetails.customer}
-                  </span>
-                </p>
-                <p>
-                  Date:{" "}
-                  <span className="font-semibold">{bookingDetails.date}</span>
-                </p>
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="relative">
-                {/* Dotted line */}
-                <div className="absolute left-5 top-5 bottom-5 w-0.5 bg-border -z-10" />
+          bookingDetails.status === "Cancelled" || bookingDetails.status === "Cancelled - Out of Stock" ? (
+            <Card>
+              <CardHeader className="text-center">
+                <div className="flex justify-center items-center mb-2">
+                  <XCircle className="w-12 h-12 text-destructive" />
+                </div>
+                <CardTitle className="text-destructive">
+                  Booking Cancelled
+                </CardTitle>
+                <CardDescription>
+                  This booking ({bookingDetails.id}) has been cancelled.
+                  {bookingDetails.status === 'Cancelled - Out of Stock' && ' This was due to the item being out of stock.'}
+                  If you have any questions, please contact support.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Booking Status</CardTitle>
+                <CardDescription>
+                  <p>
+                    Booking ID:{" "}
+                    <span className="font-semibold">{bookingDetails.id}</span>
+                  </p>
+                  <p>
+                    Customer:{" "}
+                    <span className="font-semibold">
+                      {bookingDetails.customer}
+                    </span>
+                  </p>
+                  <p>
+                    Date:{" "}
+                    <span className="font-semibold">{bookingDetails.date}</span>
+                  </p>
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="relative">
+                  {/* Dotted line */}
+                  <div className="absolute left-5 top-5 bottom-5 w-0.5 bg-border -z-10" />
 
-                <ul className="space-y-8">
-                  {statusSteps.map((step, index) => {
-                    const isActive = index <= activeIndex;
-                    return (
-                      <li key={step.name} className="flex items-start">
-                        <div
-                          className={cn(
-                            "flex h-10 w-10 items-center justify-center rounded-full border-2",
-                            isActive
-                              ? "bg-primary border-primary text-primary-foreground"
-                              : "bg-muted border-border"
-                          )}
-                        >
-                          <step.icon className="h-5 w-5" />
-                        </div>
-                        <div className="ml-4">
-                          <h3
+                  <ul className="space-y-8">
+                    {statusSteps.map((step, index) => {
+                      const isActive = index <= activeIndex;
+                      return (
+                        <li key={step.name} className="flex items-start">
+                          <div
                             className={cn(
-                              "font-semibold",
+                              "flex h-10 w-10 items-center justify-center rounded-full border-2",
                               isActive
-                                ? "text-foreground"
-                                : "text-muted-foreground"
+                                ? "bg-primary border-primary text-primary-foreground"
+                                : "bg-muted border-border"
                             )}
                           >
-                            {step.name}
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            {step.description}
-                          </p>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
+                            <step.icon className="h-5 w-5" />
+                          </div>
+                          <div className="ml-4">
+                            <h3
+                              className={cn(
+                                "font-semibold",
+                                isActive
+                                  ? "text-foreground"
+                                  : "text-muted-foreground"
+                              )}
+                            >
+                              {step.name}
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              {step.description}
+                            </p>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          )
         )}
       </div>
     </AppShell>

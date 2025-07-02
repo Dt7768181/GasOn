@@ -179,6 +179,8 @@ export default function AdminPage() {
   const getBadgeVariant = (status) => {
     switch (status) {
       case "Pending":
+      case "Cancelled":
+      case "Cancelled - Out of Stock":
         return "destructive";
       case "Booked":
       case "Confirmed":
