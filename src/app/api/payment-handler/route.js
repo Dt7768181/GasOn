@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { adminDb } from '@/lib/firebase-admin';
 
-const WEBHOOK_SECRET = 'GasOn@2025';
+const WEBHOOK_SECRET = 'gason@2025';
 
 export async function POST(req) {
   console.log("Received a request on /api/payment-handler");
