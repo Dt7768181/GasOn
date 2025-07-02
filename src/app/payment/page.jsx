@@ -19,6 +19,7 @@ import {
   query,
   where,
   getDocs,
+  updateDoc,
 } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -39,7 +40,7 @@ export default function PaymentPage() {
       return;
     }
 
-    const fetchBooking = async () => {
+    const fetchAndPrepareBooking = async () => {
       setLoading(true);
       try {
         const q = query(
@@ -57,10 +58,25 @@ export default function PaymentPage() {
           setBookingDetails(null);
         } else {
           const bookingDoc = querySnapshot.docs[0];
-          setBookingDetails(bookingDoc.data());
+          let bookingData = bookingDoc.data();
+
+          // If the order is pending, update its status to "Booked"
+          if (bookingData.status === "Pending") {
+            await updateDoc(bookingDoc.ref, {
+              status: "Booked",
+            });
+            // Update the local data to reflect this change
+            bookingData = { ...bookingData, status: "Booked" };
+            toast({
+              title: "Booking Initiated",
+              description:
+                "Your slot is reserved. Please complete the payment.",
+            });
+          }
+          setBookingDetails(bookingData);
         }
       } catch (error) {
-        console.error("Error fetching booking:", error);
+        console.error("Error fetching or updating booking:", error);
         toast({
           title: "Error",
           description: "Could not fetch booking details.",
@@ -71,7 +87,7 @@ export default function PaymentPage() {
       }
     };
 
-    fetchBooking();
+    fetchAndPrepareBooking();
   }, [orderId, router, toast]);
 
   React.useEffect(() => {
