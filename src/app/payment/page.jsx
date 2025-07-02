@@ -2,7 +2,6 @@
 "use client";
 
 import * as React from "react";
-import Script from "next/script";
 import { useSearchParams, useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import {
@@ -30,6 +29,7 @@ export default function PaymentPage() {
   const { toast } = useToast();
   const [bookingDetails, setBookingDetails] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
+  const razorpayContainerRef = React.useRef(null);
 
   const orderId = searchParams.get("orderId");
 
@@ -56,7 +56,7 @@ export default function PaymentPage() {
           });
           setBookingDetails(null);
         } else {
-          const bookingDoc = querySnapshot.docs[0];
+          const bookingDoc = querySnapshot.docs[0].data();
           setBookingDetails(bookingDoc.data());
         }
       } catch (error) {
@@ -73,6 +73,28 @@ export default function PaymentPage() {
 
     fetchBooking();
   }, [orderId, router, toast]);
+
+  React.useEffect(() => {
+    if (
+      !loading &&
+      bookingDetails &&
+      bookingDetails.type === "5kg Cylinder" &&
+      razorpayContainerRef.current
+    ) {
+      // Ensure the container is empty before appending
+      razorpayContainerRef.current.innerHTML = "";
+
+      const form = document.createElement("form");
+
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/payment-button.js";
+      script.async = true;
+      script.dataset.payment_button_id = "pl_Qo94mvwgmkGpjZ";
+
+      form.appendChild(script);
+      razorpayContainerRef.current.appendChild(form);
+    }
+  }, [loading, bookingDetails]);
 
   return (
     <AppShell>
@@ -139,22 +161,20 @@ export default function PaymentPage() {
               <div className="w-full flex justify-center">
                 {loading && <Skeleton className="h-12 w-full" />}
 
-                {bookingDetails && bookingDetails.type === '5kg Cylinder' && (
-                  <form>
-                    <Script
-                      src="https://checkout.razorpay.com/v1/payment-button.js"
-                      data-payment_button_id="pl_Qo94mvwgmkGpjZ"
-                      async
-                      key={bookingDetails.id} 
-                    />
-                  </form>
-                )}
+                {!loading &&
+                  bookingDetails &&
+                  bookingDetails.type === "5kg Cylinder" && (
+                    <div ref={razorpayContainerRef}></div>
+                  )}
 
-                {bookingDetails && bookingDetails.type !== '5kg Cylinder' && (
-                   <p className="text-center text-muted-foreground">
-                      Online payment is not yet available for this cylinder type.
+                {!loading &&
+                  bookingDetails &&
+                  bookingDetails.type !== "5kg Cylinder" && (
+                    <p className="text-center text-muted-foreground">
+                      Online payment is not yet available for this cylinder
+                      type.
                     </p>
-                )}
+                  )}
               </div>
             </CardFooter>
           </Card>
