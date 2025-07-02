@@ -1,10 +1,9 @@
-
 "use client";
 
 import * as React from "react";
+import Script from "next/script";
 import { useSearchParams, useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -13,36 +12,35 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { CreditCard, IndianRupee } from "lucide-react";
+import { IndianRupee } from "lucide-react";
 import { db } from "../../../firebase-config.js";
 import {
   collection,
   query,
   where,
   getDocs,
-  doc,
-  updateDoc,
 } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+
+// Map cylinder types to their corresponding Razorpay Payment Button IDs.
+// You can create more buttons in your Razorpay dashboard for other cylinder types.
+const paymentButtonIds = {
+  "5kg Cylinder": "pl_OFwFoWHlSZclKW",
+  // e.g. "14.2kg Cylinder": "YOUR_BUTTON_ID_FOR_14.2KG",
+};
 
 export default function PaymentPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const [bookingDetails, setBookingDetails] = React.useState(null);
-  const [bookingDocId, setBookingDocId] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
 
   const orderId = searchParams.get("orderId");
 
   React.useEffect(() => {
     if (!orderId) {
-      toast({
-        title: "Error",
-        description: "No order ID found. Redirecting to home.",
-        variant: "destructive",
-      });
       router.push("/");
       return;
     }
@@ -66,7 +64,9 @@ export default function PaymentPage() {
         } else {
           const bookingDoc = querySnapshot.docs[0];
           setBookingDetails(bookingDoc.data());
-          setBookingDocId(bookingDoc.id);
+          // IMPORTANT: After a successful payment, Razorpay will redirect the user.
+          // To automatically update the order status in Firestore from 'Pending' to 'Confirmed',
+          // you will need to set up a webhook in your Razorpay dashboard.
         }
       } catch (error) {
         console.error("Error fetching booking:", error);
@@ -83,40 +83,7 @@ export default function PaymentPage() {
     fetchBooking();
   }, [orderId, router, toast]);
 
-  const handlePayment = async () => {
-    if (!bookingDocId) {
-      toast({
-        title: "Error",
-        description: "Could not process payment. Booking details not found.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // This is where a real payment gateway integration would go.
-    // For now, we'll simulate a successful payment and update the status.
-    try {
-      const bookingRef = doc(db, "bookings", bookingDocId);
-      await updateDoc(bookingRef, {
-        status: "Confirmed",
-      });
-
-      toast({
-        title: "Payment Successful!",
-        description: "Your order has been confirmed and is being processed.",
-      });
-
-      router.push("/history");
-    } catch (error) {
-      console.error("Error updating booking status:", error);
-      toast({
-        title: "Payment Failed",
-        description:
-          "There was an issue confirming your order. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
+  const buttonId = bookingDetails ? paymentButtonIds[bookingDetails.type] : null;
 
   return (
     <AppShell>
@@ -180,15 +147,23 @@ export default function PaymentPage() {
               )}
             </CardContent>
             <CardFooter>
-              <Button
-                className="w-full"
-                size="lg"
-                onClick={handlePayment}
-                disabled={loading || !bookingDetails}
-              >
-                <CreditCard className="mr-2 h-5 w-5" />
-                Pay Now
-              </Button>
+              <div className="w-full flex justify-center">
+                {bookingDetails && buttonId && (
+                  <form>
+                    <Script
+                      src="https://checkout.razorpay.com/v1/payment-button.js"
+                      data-payment_button_id={buttonId}
+                      async
+                    />
+                  </form>
+                )}
+                {bookingDetails && !buttonId && (
+                   <p className="text-center text-muted-foreground">
+                      Online payment is not yet available for this cylinder type.
+                    </p>
+                )}
+                {loading && <Skeleton className="h-12 w-full" />}
+              </div>
             </CardFooter>
           </Card>
         </div>
