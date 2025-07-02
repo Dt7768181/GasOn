@@ -77,8 +77,6 @@ export default function PaymentPage() {
     fetchBooking();
   }, [orderId, router, toast]);
 
-  const buttonId = bookingDetails ? bookingDetails.paymentButtonId : null;
-
   return (
     <AppShell>
       <div className="flex-1 space-y-8 p-4 md:p-8">
@@ -142,22 +140,24 @@ export default function PaymentPage() {
             </CardContent>
             <CardFooter>
               <div className="w-full flex justify-center">
-                {bookingDetails && buttonId && (
+                {loading && <Skeleton className="h-12 w-full" />}
+
+                {bookingDetails && bookingDetails.type === '5kg Cylinder' && (
                   <form>
                     <Script
-                      key={buttonId}
                       src="https://checkout.razorpay.com/v1/payment-button.js"
-                      data-payment_button_id={buttonId}
+                      data-payment_button_id="pl_Qo94mvwgmkGpjZ"
                       async
+                      key="razorpay-script"
                     />
                   </form>
                 )}
-                {bookingDetails && !buttonId && (
+
+                {bookingDetails && bookingDetails.type !== '5kg Cylinder' && (
                    <p className="text-center text-muted-foreground">
                       Online payment is not yet available for this cylinder type.
                     </p>
                 )}
-                {loading && <Skeleton className="h-12 w-full" />}
               </div>
             </CardFooter>
           </Card>
