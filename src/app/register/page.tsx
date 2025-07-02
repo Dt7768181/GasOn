@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Flame } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 const registerSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters."),
@@ -33,6 +34,7 @@ const registerSchema = z.object({
 });
 
 export default function RegisterPage() {
+  const router = useRouter();
   const form = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
@@ -48,6 +50,10 @@ export default function RegisterPage() {
   function onSubmit(values: z.infer<typeof registerSchema>) {
     console.log(values);
     // Handle registration logic here
+    // Simulate login after registration
+    localStorage.setItem("userRole", "customer");
+    router.push("/");
+    router.refresh();
   }
 
   return (
@@ -154,7 +160,7 @@ export default function RegisterPage() {
           </Form>
           <div className="mt-4 text-center text-sm">
             Already have an account?{" "}
-            <Link href="/" className="underline text-primary">
+            <Link href="/login" className="underline text-primary">
               Log in
             </Link>
           </div>

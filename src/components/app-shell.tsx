@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 import {
   Flame,
@@ -37,23 +37,59 @@ import {
 import { Button } from "./ui/button";
 
 const menuItems = [
-  { href: "/", label: "Book Cylinder", icon: Flame },
-  { href: "/track", label: "Track Order", icon: MapPinned },
-  { href: "/history", label: "Order History", icon: History },
-  { href: "/admin", label: "Admin Dashboard", icon: LayoutDashboard, admin: true },
+  { href: "/", label: "Book Cylinder", icon: Flame, role: "customer" },
+  { href: "/track", label: "Track Order", icon: MapPinned, role: "customer" },
+  { href: "/history", label: "Order History", icon: History, role: "customer" },
+  { href: "/admin", label: "Admin Dashboard", icon: LayoutDashboard, role: "admin" },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [userRole, setUserRole] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const role = localStorage.getItem("userRole");
+    setUserRole(role);
+
+    // Redirect logic for protected routes
+    if (!role) {
+      router.push('/login');
+    } else if (role === 'customer' && pathname.startsWith('/admin')) {
+      router.push('/'); // customer trying to access admin
+    } else if (role === 'admin' && !pathname.startsWith('/admin')) {
+      // admin trying to access customer pages, redirect to admin dashboard
+      router.push('/admin');
+    }
+
+  }, [pathname, router]);
+
+  const handleLogout = () => {
+    const role = localStorage.getItem("userRole");
+    localStorage.removeItem("userRole");
+    if (role === 'admin') {
+      router.push('/admin/login');
+    } else {
+      router.push('/login');
+    }
+  };
+
   const [isMounted, setIsMounted] = React.useState(false);
 
   React.useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  if (!isMounted) {
-    return null; // or a loading spinner
+  // Render nothing until client-side hydration is complete and role is determined
+  if (!isMounted || !userRole) {
+    return null;
   }
+  
+  const filteredMenuItems = menuItems.filter(item => item.role === userRole);
+  
+  const isAdmin = userRole === 'admin';
+  const userName = isAdmin ? 'Admin User' : 'Customer User';
+  const userEmail = isAdmin ? 'admin@gason.com' : 'customer@example.com';
 
   return (
     <SidebarProvider>
@@ -66,12 +102,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </SidebarHeader>
         <SidebarContent>
           <SidebarMenu>
-            {menuItems.map((item) => (
+            {filteredMenuItems.map((item) => (
               <SidebarMenuItem key={item.href}>
                 <SidebarMenuButton
                   asChild
                   isActive={pathname === item.href}
-                  className={cn(item.admin && "mt-4")}
                 >
                   <Link href={item.href}>
                     <item.icon className="h-4 w-4" />
@@ -88,20 +123,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Button variant="ghost" className="w-full justify-start gap-2 p-2 h-auto">
                 <Avatar className="h-8 w-8">
                   <AvatarImage src="https://placehold.co/40x40.png" alt="@user" />
-                  <AvatarFallback>U</AvatarFallback>
+                  <AvatarFallback>{userName.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div className="text-left">
-                  <p className="text-sm font-medium">Guest User</p>
-                  <p className="text-xs text-muted-foreground">guest@example.com</p>
+                  <p className="text-sm font-medium">{userName}</p>
+                  <p className="text-xs text-muted-foreground">{userEmail}</p>
                 </div>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56 mb-2 ml-2" align="end" forceMount>
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">Guest User</p>
+                  <p className="text-sm font-medium leading-none">{userName}</p>
                   <p className="text-xs leading-none text-muted-foreground">
-                    guest@example.com
+                    {userEmail}
                   </p>
                 </div>
               </DropdownMenuLabel>
@@ -110,14 +145,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <User className="mr-2 h-4 w-4" />
                 <span>Profile</span>
               </DropdownMenuItem>
-              <Link href="/register">
-                <DropdownMenuItem>
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Register</span>
-                </DropdownMenuItem>
-              </Link>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>
