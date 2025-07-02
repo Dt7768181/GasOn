@@ -1,3 +1,6 @@
+"use client";
+
+import * as React from "react";
 import { AppShell } from "@/components/app-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,33 +26,8 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { FilePlus2, PlusCircle } from "lucide-react";
-
-const bookings = [
-  {
-    id: "GAS-91384",
-    customer: "Ravi Kumar",
-    date: "2024-07-28",
-    time: "Morning",
-    type: "14.2kg",
-    status: "Pending",
-  },
-  {
-    id: "GAS-91383",
-    customer: "Sunita Sharma",
-    date: "2024-07-28",
-    time: "Afternoon",
-    type: "14.2kg",
-    status: "Confirmed",
-  },
-  {
-    id: "GAS-91382",
-    customer: "Amit Singh",
-    date: "2024-07-27",
-    time: "Evening",
-    type: "5kg",
-    status: "Out for Delivery",
-  },
-];
+import { db } from "../../../firebase-config.js";
+import { collection, query, getDocs, orderBy } from "firebase/firestore";
 
 const cylinders = [
   { id: 1, type: "5kg Cylinder", stock: 150, price: 450 },
@@ -58,12 +36,41 @@ const cylinders = [
 ];
 
 export default function AdminPage() {
+  const [bookings, setBookings] = React.useState([]);
+  const [loadingBookings, setLoadingBookings] = React.useState(true);
+
+  React.useEffect(() => {
+    const fetchBookings = async () => {
+      setLoadingBookings(true);
+      try {
+        const q = query(
+          collection(db, "bookings"),
+          orderBy("createdAt", "desc")
+        );
+        const querySnapshot = await getDocs(q);
+        const fetchedBookings = querySnapshot.docs.map((doc) => ({
+          ...doc.data(),
+          docId: doc.id,
+        }));
+        setBookings(fetchedBookings);
+      } catch (error) {
+        console.error("Error fetching bookings:", error);
+      } finally {
+        setLoadingBookings(false);
+      }
+    };
+
+    fetchBookings();
+  }, []);
+
   return (
     <AppShell>
       <div className="flex-1 space-y-8 p-4 md:p-8">
         <div className="flex items-center justify-between space-y-2">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
+            <h1 className="text-3xl font-bold tracking-tight">
+              Admin Dashboard
+            </h1>
             <p className="text-muted-foreground">
               Manage bookings, cylinders, and deliveries.
             </p>
@@ -90,47 +97,57 @@ export default function AdminPage() {
                 </Button>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Order ID</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Time Slot</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {bookings.map((booking) => (
-                      <TableRow key={booking.id}>
-                        <TableCell>{booking.id}</TableCell>
-                        <TableCell>{booking.customer}</TableCell>
-                        <TableCell>{booking.date}</TableCell>
-                        <TableCell>{booking.time}</TableCell>
-                        <TableCell>{booking.type}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={booking.status === 'Pending' ? 'destructive' : 'default'}
-                          >
-                            {booking.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Button variant="outline" size="sm">
-                            Manage
-                          </Button>
-                        </TableCell>
+                {loadingBookings ? (
+                  <p className="text-center text-muted-foreground">
+                    Loading bookings...
+                  </p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Order ID</TableHead>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Time Slot</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Action</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {bookings.map((booking) => (
+                        <TableRow key={booking.id}>
+                          <TableCell>{booking.id}</TableCell>
+                          <TableCell>{booking.customer}</TableCell>
+                          <TableCell>{booking.date}</TableCell>
+                          <TableCell>{booking.time}</TableCell>
+                          <TableCell>{booking.type}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                booking.status === "Pending"
+                                  ? "destructive"
+                                  : "default"
+                              }
+                            >
+                              {booking.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="outline" size="sm">
+                              Manage
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
           <TabsContent value="cylinders" className="space-y-4">
-             <Card>
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                   <CardTitle>Cylinder Inventory</CardTitle>
@@ -143,22 +160,24 @@ export default function AdminPage() {
                 </Button>
               </CardHeader>
               <CardContent>
-                 <Table>
+                <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Cylinder Type</TableHead>
                       <TableHead>In Stock</TableHead>
                       <TableHead>Price</TableHead>
-                       <TableHead>Action</TableHead>
+                      <TableHead>Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {cylinders.map((cylinder) => (
                       <TableRow key={cylinder.id}>
-                        <TableCell className="font-semibold">{cylinder.type}</TableCell>
+                        <TableCell className="font-semibold">
+                          {cylinder.type}
+                        </TableCell>
                         <TableCell>{cylinder.stock}</TableCell>
                         <TableCell>₹{cylinder.price.toFixed(2)}</TableCell>
-                         <TableCell>
+                        <TableCell>
                           <Button variant="outline" size="sm">
                             Edit
                           </Button>
