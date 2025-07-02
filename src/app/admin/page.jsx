@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -236,6 +237,7 @@ export default function AdminPage() {
                         <TableHead>Date</TableHead>
                         <TableHead>Time Slot</TableHead>
                         <TableHead>Type</TableHead>
+                        <TableHead>Payment</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="text-right">Action</TableHead>
                       </TableRow>
@@ -248,6 +250,7 @@ export default function AdminPage() {
                           <TableCell>{booking.date}</TableCell>
                           <TableCell>{booking.time}</TableCell>
                           <TableCell>{booking.type}</TableCell>
+                          <TableCell>{booking.paymentMethod || "N/A"}</TableCell>
                           <TableCell>
                             <Badge
                               variant={getBadgeVariant(booking.status)}
