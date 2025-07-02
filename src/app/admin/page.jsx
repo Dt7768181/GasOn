@@ -54,6 +54,7 @@ const cylinders = [
 
 const statusSteps = [
   "Pending",
+  "Booked",
   "Confirmed",
   "Out for Delivery",
   "Delivered",
@@ -119,6 +120,7 @@ export default function AdminPage() {
     switch (status) {
       case "Pending":
         return "destructive";
+      case "Booked":
       case "Confirmed":
         return "secondary";
       case "Out for Delivery":

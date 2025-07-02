@@ -16,6 +16,7 @@ import {
   CircleCheck,
   Truck,
   PackageCheck,
+  BookmarkCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { db } from "../../../firebase-config.js";
@@ -29,9 +30,14 @@ const statusSteps = [
     description: "Your booking is received and is waiting for confirmation.",
   },
   {
+    name: "Booked",
+    icon: BookmarkCheck,
+    description: "Your booking is confirmed and will be processed shortly.",
+  },
+  {
     name: "Confirmed",
     icon: CircleCheck,
-    description: "Your booking has been confirmed by our team.",
+    description: "Your payment has been received and your booking is confirmed.",
   },
   {
     name: "Out for Delivery",

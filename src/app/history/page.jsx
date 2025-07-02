@@ -2,7 +2,6 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,12 +26,16 @@ import {
   query,
   where,
   getDocs,
+  doc,
+  updateDoc,
 } from "firebase/firestore";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 export default function HistoryPage() {
   const [orders, setOrders] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
+  const { toast } = useToast();
 
   React.useEffect(() => {
     const fetchOrders = async () => {
@@ -70,11 +73,40 @@ export default function HistoryPage() {
 
     fetchOrders();
   }, []);
+  
+  const handleConfirmBooking = async (order) => {
+    try {
+      const bookingRef = doc(db, "bookings", order.docId);
+      await updateDoc(bookingRef, {
+        status: "Booked",
+      });
+
+      setOrders((prevOrders) =>
+        prevOrders.map((o) =>
+          o.docId === order.docId ? { ...o, status: "Booked" } : o
+        )
+      );
+
+      toast({
+        title: "Booking Confirmed!",
+        description: `Your order ${order.id} has been successfully booked.`,
+      });
+    } catch (error) {
+      console.error("Error updating booking status:", error);
+      toast({
+        title: "Update Failed",
+        description: "Could not update the booking status.",
+        variant: "destructive",
+      });
+    }
+  };
+
 
   const getBadgeVariant = (status) => {
     switch (status) {
       case "Pending":
         return "destructive";
+      case "Booked":
       case "Confirmed":
         return "secondary";
       case "Out for Delivery":
@@ -135,8 +167,8 @@ export default function HistoryPage() {
                       </TableCell>
                       <TableCell className="text-center">
                         {order.status === "Pending" ? (
-                          <Button asChild size="sm">
-                            <Link href={`/payment?orderId=${order.id}`}>Pay Now</Link>
+                          <Button size="sm" onClick={() => handleConfirmBooking(order)}>
+                            Confirm Booking
                           </Button>
                         ) : (
                           <Badge
