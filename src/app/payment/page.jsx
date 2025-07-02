@@ -23,13 +23,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Map cylinder types to their corresponding Razorpay Payment Button IDs.
-// You can create more buttons in your Razorpay dashboard for other cylinder types.
-const paymentButtonIds = {
-  "5kg Cylinder": "pl_OFwFoWHlSZclKW",
-  // e.g. "14.2kg Cylinder": "YOUR_BUTTON_ID_FOR_14.2KG",
-};
-
 export default function PaymentPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -83,7 +76,7 @@ export default function PaymentPage() {
     fetchBooking();
   }, [orderId, router, toast]);
 
-  const buttonId = bookingDetails ? paymentButtonIds[bookingDetails.type] : null;
+  const buttonId = bookingDetails ? bookingDetails.paymentButtonId : null;
 
   return (
     <AppShell>

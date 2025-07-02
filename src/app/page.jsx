@@ -33,6 +33,7 @@ const cylinderTypes = [
     price: "450",
     deliveryCharge: 50,
     description: "Ideal for small families and bachelors.",
+    paymentButtonId: "pl_OFwFoWHlSZclKW",
   },
   {
     id: "14.2kg",
@@ -40,6 +41,7 @@ const cylinderTypes = [
     price: "1100",
     deliveryCharge: 100,
     description: "Standard household cylinder for regular use.",
+    paymentButtonId: "pl_OFwFoWHlSZclKW", // Note: Using the same button ID. Update if you have different ones.
   },
   {
     id: "19kg",
@@ -47,6 +49,7 @@ const cylinderTypes = [
     price: "2200",
     deliveryCharge: 500,
     description: "Commercial size, suitable for restaurants.",
+    paymentButtonId: "pl_OFwFoWHlSZclKW", // Note: Using the same button ID. Update if you have different ones.
   },
 ];
 
@@ -100,6 +103,7 @@ export default function BookingPage() {
         amount: totalAmount,
         status: "Pending",
         createdAt: serverTimestamp(),
+        paymentButtonId: cylinderDetails.paymentButtonId,
       });
 
       toast({
