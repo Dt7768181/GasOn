@@ -57,6 +57,11 @@ export default function LoginPage() {
               Register
             </Link>
           </div>
+           <div className="mt-4 text-center text-xs">
+            <Link href="/admin/login" className="underline text-muted-foreground hover:text-primary">
+              For Admins
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>
