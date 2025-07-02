@@ -29,7 +29,10 @@ import { useToast } from "@/hooks/use-toast";
 
 const registerSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters."),
-  phone: z.string().regex(/^\d{10}$/, "Please enter a valid 10-digit phone number."),
+  phone: z
+    .string()
+    .regex(/^\d{10}$/, "Please enter a valid 10-digit phone number."),
+  email: z.string().email("Please enter a valid email address."),
   address1: z.string().min(5, "Address line 1 is required."),
   address2: z.string().optional(),
   city: z.string().min(2, "City is required."),
@@ -44,6 +47,7 @@ export default function RegisterPage() {
     defaultValues: {
       fullName: "",
       phone: "",
+      email: "",
       address1: "",
       address2: "",
       city: "",
@@ -56,6 +60,7 @@ export default function RegisterPage() {
       await setDoc(doc(db, "customers", values.phone), {
         fullName: values.fullName,
         phone: values.phone,
+        email: values.email,
         address1: values.address1,
         address2: values.address2,
         city: values.city,
@@ -72,7 +77,8 @@ export default function RegisterPage() {
       console.error("Error creating user: ", error);
       toast({
         title: "Registration Failed",
-        description: "An error occurred while creating your account. Please try again.",
+        description:
+          "An error occurred while creating your account. Please try again.",
         variant: "destructive",
       });
     }
@@ -123,12 +129,28 @@ export default function RegisterPage() {
               </div>
               <FormField
                 control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email Address</FormLabel>
+                    <FormControl>
+                      <Input placeholder="john.doe@example.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
                 name="address1"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Address Line 1</FormLabel>
                     <FormControl>
-                      <Input placeholder="Flat, House no., Building, Company, Apartment" {...field} />
+                      <Input
+                        placeholder="Flat, House no., Building, Company, Apartment"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -141,7 +163,10 @@ export default function RegisterPage() {
                   <FormItem>
                     <FormLabel>Address Line 2 (Optional)</FormLabel>
                     <FormControl>
-                      <Input placeholder="Area, Colony, Street, Sector, Village" {...field} />
+                      <Input
+                        placeholder="Area, Colony, Street, Sector, Village"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

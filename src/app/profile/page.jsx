@@ -32,6 +32,7 @@ const profileSchema = z.object({
   phone: z
     .string()
     .regex(/^\d{10}$/, 'Please enter a valid 10-digit phone number.'),
+  email: z.string().email('Please enter a valid email address.'),
   address1: z.string().min(5, 'Address line 1 is required.'),
   address2: z.string().optional(),
   city: z.string().min(2, 'City is required.'),
@@ -41,11 +42,13 @@ const profileSchema = z.object({
 const adminProfileSchema = z.object({
   fullName: z.string().min(2, 'Full name must be at least 2 characters.'),
   username: z.string().min(2, 'Username is required.'),
+  email: z.string().email('Please enter a valid email address.'),
 });
 
 const defaultCustomerProfile = {
   fullName: '',
   phone: '',
+  email: '',
   address1: '',
   address2: '',
   city: '',
@@ -55,6 +58,7 @@ const defaultCustomerProfile = {
 const defaultAdminProfile = {
   fullName: 'Admin User',
   username: 'admin',
+  email: 'admin@gason.com',
 };
 
 export default function ProfilePage() {
@@ -213,6 +217,19 @@ export default function ProfilePage() {
                       )}
                     />
                   </div>
+                   <FormField
+                      control={customerForm.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email Address</FormLabel>
+                          <FormControl>
+                            <Input placeholder="john.doe@example.com" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   <FormField
                     control={customerForm.control}
                     name="address1"
@@ -294,27 +311,42 @@ export default function ProfilePage() {
                   onSubmit={adminForm.handleSubmit(onAdminSubmit)}
                   className="space-y-4"
                 >
-                  <FormField
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={adminForm.control}
+                      name="fullName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Full Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Admin User" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={adminForm.control}
+                      name="username"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Username</FormLabel>
+                          <FormControl>
+                            <Input placeholder="admin" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                   <FormField
                     control={adminForm.control}
-                    name="fullName"
+                    name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Full Name</FormLabel>
+                        <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Input placeholder="Admin User" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={adminForm.control}
-                    name="username"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Username</FormLabel>
-                        <FormControl>
-                          <Input placeholder="admin" {...field} />
+                          <Input placeholder="admin@gason.com" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

@@ -57,14 +57,14 @@ export function AppShell({ children }) {
 
     if (role === 'admin') {
       const storedProfile = localStorage.getItem('adminProfile');
-      const profile = storedProfile ? JSON.parse(storedProfile) : { fullName: 'Admin User' };
+      const profile = storedProfile ? JSON.parse(storedProfile) : { fullName: 'Admin User', email: 'admin@gason.com' };
       setUserName(profile.fullName);
-      setUserEmail('admin@gason.com');
+      setUserEmail(profile.email || 'admin@gason.com');
     } else if (role === 'customer') {
       const storedProfile = localStorage.getItem('customerProfile');
-      const profile = storedProfile ? JSON.parse(storedProfile) : { fullName: 'Customer User' };
+      const profile = storedProfile ? JSON.parse(storedProfile) : { fullName: 'Customer', email: '' };
       setUserName(profile.fullName);
-      setUserEmail('customer@example.com');
+      setUserEmail(profile.email || '');
     }
 
     // Auth redirection logic
@@ -97,6 +97,7 @@ export function AppShell({ children }) {
       router.push('/admin/login');
     } else {
       localStorage.removeItem("customerProfile");
+      localStorage.removeItem("userId");
       router.push('/login');
     }
     setUserRole(null);
@@ -141,7 +142,7 @@ export function AppShell({ children }) {
               <Button variant="ghost" className="w-full justify-start gap-2 p-2 h-auto">
                 <Avatar className="h-8 w-8">
                   <AvatarImage src="https://placehold.co/40x40.png" alt="@user" />
-                  <AvatarFallback>{userName.charAt(0)}</AvatarFallback>
+                  <AvatarFallback>{userName ? userName.charAt(0).toUpperCase() : 'U'}</AvatarFallback>
                 </Avatar>
                 <div className="text-left">
                   <p className="text-sm font-medium">{userName}</p>
