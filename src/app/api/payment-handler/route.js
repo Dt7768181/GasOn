@@ -5,6 +5,7 @@ import { adminDb } from '@/lib/firebase-admin';
 const WEBHOOK_SECRET = 'GasOn@2025';
 
 export async function POST(req) {
+  console.log("Received a request on /api/payment-handler");
   const text = await req.text();
   const signature = req.headers.get('x-razorpay-signature');
 
@@ -14,14 +15,16 @@ export async function POST(req) {
   const digest = hmac.digest('hex');
 
   if (digest !== signature) {
-    console.error('Webhook signature validation failed.');
+    console.error('Webhook signature validation failed. Check that the secret in your code matches the one in the Razorpay dashboard.');
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
 
   // 2. Parse the payload and check the event
   const payload = JSON.parse(text);
+  console.log("Webhook payload:", JSON.stringify(payload, null, 2));
 
   if (payload.event !== 'payment.captured') {
+    console.log(`Webhook ignored: event is '${payload.event}', not 'payment.captured'.`);
     // We only care about successful payments
     return NextResponse.json({ status: 'ok, event not payment.captured' });
   }
@@ -34,6 +37,8 @@ export async function POST(req) {
       console.log('Webhook received without booking_id in notes. Cannot process.');
       return NextResponse.json({ status: 'ok, no booking_id' });
     }
+    
+    console.log(`Processing captured payment for bookingId: ${bookingId}`);
 
     // 3. Find the corresponding booking in Firestore using the bookingId from notes
     const bookingsRef = adminDb.collection('bookings');
