@@ -57,7 +57,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       router.push('/login');
     } else if (role === 'customer' && pathname.startsWith('/admin')) {
       router.push('/'); // customer trying to access admin
-    } else if (role === 'admin' && !pathname.startsWith('/admin')) {
+    } else if (role === 'admin' && !pathname.startsWith('/admin') && pathname !== '/profile') {
       // admin trying to access customer pages, redirect to admin dashboard
       router.push('/admin');
     }
@@ -141,9 +141,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <User className="mr-2 h-4 w-4" />
-                <span>Profile</span>
+              <DropdownMenuItem asChild>
+                <Link href="/profile">
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Profile</span>
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout}>
