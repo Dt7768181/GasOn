@@ -24,7 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Flame } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { doc, setDoc } from "firebase/firestore";
-import { db } from "../../../firebase-config";
+import { db } from "../../../firebase-config.js";
 import { useToast } from "@/hooks/use-toast";
 
 const registerSchema = z.object({

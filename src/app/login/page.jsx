@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Flame } from "lucide-react";
 import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../../../firebase-config';
+import { db } from '../../../firebase-config.js';
 import { useToast } from "@/hooks/use-toast";
 
 

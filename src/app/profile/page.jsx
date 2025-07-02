@@ -24,7 +24,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { db } from '../../../firebase-config';
+import { db } from '../../../firebase-config.js';
 
 
 const profileSchema = z.object({
