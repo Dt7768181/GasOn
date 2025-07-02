@@ -31,18 +31,21 @@ const cylinderTypes = [
     id: "5kg",
     name: "5kg Cylinder",
     price: "450",
+    deliveryCharge: 50,
     description: "Ideal for small families and bachelors.",
   },
   {
     id: "14.2kg",
     name: "14.2kg Cylinder",
     price: "1100",
+    deliveryCharge: 100,
     description: "Standard household cylinder for regular use.",
   },
   {
     id: "19kg",
     name: "19kg Cylinder",
     price: "2200",
+    deliveryCharge: 500,
     description: "Commercial size, suitable for restaurants.",
   },
 ];
@@ -81,6 +84,8 @@ export default function BookingPage() {
     const cylinderDetails = cylinderTypes.find(
       (c) => c.id === selectedCylinder
     );
+    const totalAmount =
+      parseFloat(cylinderDetails.price) + cylinderDetails.deliveryCharge;
 
     try {
       const orderId = `GAS-${Math.floor(10000 + Math.random() * 90000)}`;
@@ -92,7 +97,7 @@ export default function BookingPage() {
         date: date.toISOString().split("T")[0],
         time: timeSlot,
         type: cylinderDetails.name,
-        amount: parseFloat(cylinderDetails.price),
+        amount: totalAmount,
         status: "Pending",
         createdAt: serverTimestamp(),
       });
@@ -114,6 +119,9 @@ export default function BookingPage() {
   };
 
   const currentCylinder = cylinderTypes.find((c) => c.id === selectedCylinder);
+  const totalPrice = currentCylinder
+    ? parseFloat(currentCylinder.price) + currentCylinder.deliveryCharge
+    : null;
 
   return (
     <AppShell>
@@ -239,11 +247,18 @@ export default function BookingPage() {
                 </div>
                 <div className="flex justify-between">
                   <span>Delivery Charges</span>
-                  <span className="text-accent font-semibold">Free</span>
+                  <span>
+                    ₹
+                    {currentCylinder?.deliveryCharge
+                      ? currentCylinder.deliveryCharge.toFixed(2)
+                      : "N/A"}
+                  </span>
                 </div>
                 <div className="flex justify-between font-bold text-lg pt-2 border-t">
                   <span>Total</span>
-                  <span>₹{currentCylinder?.price || "N/A"}</span>
+                  <span>
+                    ₹{totalPrice !== null ? totalPrice.toFixed(2) : "N/A"}
+                  </span>
                 </div>
                 <Button
                   size="lg"
