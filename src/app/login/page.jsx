@@ -23,7 +23,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [phone, setPhone] = React.useState('');
-  const [password, setPassword] = React.useState('password');
+  const [password, setPassword] = React.useState('password'); // Default for demo
 
   const handleLogin = async () => {
     if (!phone) {
@@ -36,16 +36,16 @@ export default function LoginPage() {
     }
     
     try {
-      const docRef = doc(db, "customers", phone);
-      const docSnap = await getDoc(docRef);
+      // In a real app, you would also verify the password against the database.
+      const userRef = doc(db, "customers", phone);
+      const userDoc = await getDoc(userRef);
 
-      if (docSnap.exists()) {
-        // In a real app, you'd verify the password here.
+      if (userDoc.exists()) {
+        // Set user role and ID in local storage to establish a session.
+        // The useAuth hook will handle fetching the full profile and navigation.
         localStorage.setItem("userRole", "customer");
         localStorage.setItem("userId", phone);
-        localStorage.setItem("customerProfile", JSON.stringify(docSnap.data()));
         router.push("/");
-        router.refresh(); 
       } else {
         toast({
           title: 'Login Failed',

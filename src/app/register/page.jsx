@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -67,16 +66,15 @@ export default function RegisterPage() {
 
   async function onSubmit(values) {
     try {
-      // In a real app, you would hash the password here.
+      // In a real app, you would hash the password before saving.
       const { confirmPassword, ...customerData } = values;
       await setDoc(doc(db, "customers", customerData.phone), customerData);
 
-      localStorage.setItem("customerProfile", JSON.stringify(customerData));
+      // Set user role and ID to establish a session.
+      // The useAuth hook will handle fetching the profile and navigation.
       localStorage.setItem("userRole", "customer");
       localStorage.setItem("userId", customerData.phone);
-
       router.push("/");
-      router.refresh();
     } catch (error) {
       console.error("Error creating user: ", error);
       toast({

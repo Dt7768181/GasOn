@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -51,6 +50,10 @@ export default function HistoryPage() {
   const [isAlertOpen, setIsAlertOpen] = React.useState(false);
   const [selectedOrder, setSelectedOrder] = React.useState(null);
 
+  const canBeCancelled = (status) => {
+    return ["Pending", "Booked", "Confirmed"].includes(status);
+  };
+
   React.useEffect(() => {
     const fetchOrders = async () => {
       const userId = localStorage.getItem("userId");
@@ -59,6 +62,7 @@ export default function HistoryPage() {
         return;
       }
 
+      setLoading(true);
       try {
         const q = query(
           collection(db, "bookings"),
@@ -89,6 +93,17 @@ export default function HistoryPage() {
 
   const handleCancelBooking = async () => {
     if (!selectedOrder) return;
+    
+    // Fail early if the order is in a state that cannot be cancelled.
+    if (!canBeCancelled(selectedOrder.status)) {
+       toast({
+        title: "Cancellation Failed",
+        description: "This booking cannot be cancelled at its current stage.",
+        variant: "destructive",
+      });
+      setIsAlertOpen(false);
+      return;
+    }
 
     try {
       await runTransaction(db, async (transaction) => {
@@ -101,17 +116,18 @@ export default function HistoryPage() {
 
         const bookingData = bookingDoc.data();
 
-        // Check if the booking status allows cancellation
-        if (!["Pending", "Booked", "Confirmed"].includes(bookingData.status)) {
+        // Double-check status inside the transaction for safety
+        if (!canBeCancelled(bookingData.status)) {
           throw new Error("This booking cannot be cancelled.");
         }
 
-        // If the order was confirmed or booked, restock the cylinder
-        if (["Confirmed", "Booked"].includes(bookingData.status)) {
+        // If the order was confirmed or booked (not pending), it means stock was allocated.
+        // We need to return the cylinder to the inventory.
+        const shouldRestock = bookingData.status === "Confirmed" || bookingData.status === "Booked";
+
+        if (shouldRestock) {
           if (!bookingData.cylinderId) {
-            console.warn(
-              `Cannot restock for order ${selectedOrder.id}: missing cylinderId.`
-            );
+            console.warn(`Cannot restock for order ${selectedOrder.id}: missing cylinderId.`);
           } else {
             const cylinderRef = doc(db, "cylinders", bookingData.cylinderId);
             const cylinderDoc = await transaction.get(cylinderRef);
@@ -120,17 +136,16 @@ export default function HistoryPage() {
               const newStock = cylinderDoc.data().stock + 1;
               transaction.update(cylinderRef, { stock: newStock });
             } else {
-              console.error(
-                `Cylinder ${bookingData.cylinderId} not found for restocking order ${selectedOrder.id}.`
-              );
+              console.error(`Cylinder ${bookingData.cylinderId} not found for restocking order ${selectedOrder.id}.`);
             }
           }
         }
 
-        // Always update the booking status to "Cancelled"
+        // Finally, update the booking status to "Cancelled"
         transaction.update(bookingRef, { status: "Cancelled" });
       });
 
+      // Update the local state to immediately reflect the change in the UI
       setOrders((prevOrders) =>
         prevOrders.map((o) =>
           o.docId === selectedOrder.docId
@@ -147,8 +162,7 @@ export default function HistoryPage() {
       console.error("Error cancelling booking:", error);
       toast({
         title: "Cancellation Failed",
-        description:
-          error.message || "Could not cancel the booking. Please try again.",
+        description: error.message || "Could not cancel the booking. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -176,10 +190,6 @@ export default function HistoryPage() {
   const openCancelDialog = (order) => {
     setSelectedOrder(order);
     setIsAlertOpen(true);
-  };
-
-  const canBeCancelled = (status) => {
-    return ["Pending", "Booked", "Confirmed"].includes(status);
   };
 
   return (

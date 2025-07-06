@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -85,7 +84,7 @@ export default function AdminPage() {
       }
     };
 
-    const initializeAndFetchCylinders = async () => {
+    const loadCylinderData = async () => {
       setLoadingCylinders(true);
       const cylindersRef = collection(db, "cylinders");
       try {
@@ -146,7 +145,7 @@ export default function AdminPage() {
     };
 
     fetchBookings();
-    initializeAndFetchCylinders();
+    loadCylinderData();
   }, [toast]);
 
   const handleStatusUpdate = async (docId, newStatus) => {

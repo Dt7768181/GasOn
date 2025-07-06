@@ -23,9 +23,10 @@ import { useToast } from '@/hooks/use-toast';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../firebase-config.js';
-
+import { useAuth } from '@/hooks/use-auth.js';
+import { Skeleton } from '@/components/ui/skeleton.jsx';
 
 const profileSchema = z.object({
   fullName: z.string().min(2, 'Full name must be at least 2 characters.'),
@@ -45,123 +46,114 @@ const adminProfileSchema = z.object({
   email: z.string().email('Please enter a valid email address.'),
 });
 
-const defaultCustomerProfile = {
-  fullName: '',
-  phone: '',
-  email: '',
-  address1: '',
-  address2: '',
-  city: '',
-  pincode: '',
-};
-
-const defaultAdminProfile = {
-  fullName: 'Admin User',
-  username: 'admin',
-  email: 'admin@gason.com',
-};
-
 export default function ProfilePage() {
   const { toast } = useToast();
-  const [userRole, setUserRole] = React.useState(null);
+  const { user, role, isLoading } = useAuth();
 
-  const customerForm = useForm({
-    resolver: zodResolver(profileSchema),
-    defaultValues: defaultCustomerProfile,
+  const form = useForm({
+    resolver: role === 'admin' ? zodResolver(adminProfileSchema) : zodResolver(profileSchema),
   });
-
-  const adminForm = useForm({
-    resolver: zodResolver(adminProfileSchema),
-    defaultValues: defaultAdminProfile,
-  });
-
+  
+  // When the user data is loaded by the auth hook, reset the form with the new data.
   React.useEffect(() => {
-    const role = localStorage.getItem('userRole');
-    setUserRole(role);
-
-    const fetchCustomerProfile = async () => {
-      const userId = localStorage.getItem('userId');
-      if (!userId) {
-        const storedProfile = localStorage.getItem('customerProfile');
-        if (storedProfile) {
-          customerForm.reset(JSON.parse(storedProfile));
-        }
-        return;
-      }
-
-      try {
-        const docRef = doc(db, "customers", userId);
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists()) {
-          const profileData = docSnap.data();
-          customerForm.reset(profileData);
-          localStorage.setItem('customerProfile', JSON.stringify(profileData));
-        } else {
-          console.log("No such document!");
-        }
-      } catch (error) {
-        console.error("Error fetching user profile:", error);
-      }
-    };
-
-    if (role === 'customer') {
-      fetchCustomerProfile();
-    } else if (role === 'admin') {
-      const storedProfile = localStorage.getItem('adminProfile');
-      if (storedProfile) {
-        adminForm.reset(JSON.parse(storedProfile));
-      }
+    if (user) {
+      form.reset(user);
     }
-  }, [customerForm, adminForm]);
+  }, [user, form]);
 
-  async function onCustomerSubmit(values) {
-    const userId = localStorage.getItem('userId');
-    if (!userId) {
-      toast({
-        title: 'Error',
-        description: 'Could not update profile. User not found.',
-        variant: 'destructive',
-      });
-      return;
-    }
 
+  async function onSubmit(values) {
+    // Notify other components (like AppShell) that the profile has changed.
+    const dispatchProfileUpdate = () => window.dispatchEvent(new Event("profileUpdated"));
+    
     try {
-      const customerDocRef = doc(db, 'customers', userId);
-      await updateDoc(customerDocRef, values);
-
-      localStorage.setItem('customerProfile', JSON.stringify(values));
+      if (role === 'customer') {
+          const userId = localStorage.getItem('userId');
+          if (!userId) throw new Error("Could not update profile. User not found.");
+          
+          const customerDocRef = doc(db, 'customers', userId);
+          await updateDoc(customerDocRef, values);
+      } else if (role === 'admin') {
+          // For the demo, admin profile is saved to local storage
+          localStorage.setItem('adminProfile', JSON.stringify(values));
+      }
+      
       toast({
         title: 'Profile Updated',
         description: 'Your information has been saved successfully.',
       });
-      window.dispatchEvent(new Event("profileUpdated"));
+      dispatchProfileUpdate();
+
     } catch (error) {
-      console.error("Error updating document: ", error);
+      console.error("Error updating profile: ", error);
       toast({
         title: 'Error',
-        description: 'There was a problem saving your profile.',
+        description: error.message || 'There was a problem saving your profile.',
         variant: 'destructive',
       });
     }
   }
 
-  function onAdminSubmit(values) {
-    localStorage.setItem('adminProfile', JSON.stringify(values));
-    toast({
-      title: 'Profile Updated',
-      description: 'Your information has been saved successfully.',
-    });
-    window.dispatchEvent(new Event("profileUpdated"));
-  }
-
-  if (!userRole) {
+  if (isLoading) {
     return (
       <AppShell>
-        <div className="flex-1 p-4 md:p-8">Loading...</div>
+        <div className="flex-1 p-4 md:p-8 space-y-4">
+            <Skeleton className="h-10 w-1/4" />
+            <Skeleton className="h-64 w-full" />
+        </div>
       </AppShell>
     );
   }
+
+  const renderCustomerForm = () => (
+      <Card>
+        <CardHeader>
+          <CardTitle>Customer Information</CardTitle>
+          <CardDescription>
+            Update your personal and address details here.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <FormField control={form.control} name="fullName" render={({ field }) => ( <FormItem> <FormLabel>Full Name</FormLabel> <FormControl> <Input placeholder="John Doe" {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
+                <FormField control={form.control} name="phone" render={({ field }) => ( <FormItem> <FormLabel>Phone Number</FormLabel> <FormControl> <Input placeholder="9876543210" {...field} disabled /> </FormControl> <FormMessage /> </FormItem> )} />
+              </div>
+              <FormField control={form.control} name="email" render={({ field }) => ( <FormItem> <FormLabel>Email Address</FormLabel> <FormControl> <Input placeholder="john.doe@example.com" {...field} /> </FormControl> <FormMessage /> </FormItem> )}/>
+              <FormField control={form.control} name="address1" render={({ field }) => ( <FormItem> <FormLabel>Address Line 1</FormLabel> <FormControl> <Input placeholder="Flat, House no., Building, Company, Apartment" {...field} /> </FormControl> <FormMessage /> </FormItem> )}/>
+              <FormField control={form.control} name="address2" render={({ field }) => ( <FormItem> <FormLabel>Address Line 2 (Optional)</FormLabel> <FormControl> <Input placeholder="Area, Colony, Street, Sector, Village" {...field} /> </FormControl> <FormMessage /> </FormItem> )}/>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <FormField control={form.control} name="city" render={({ field }) => ( <FormItem> <FormLabel>City</FormLabel> <FormControl> <Input placeholder="Mumbai" {...field} /> </FormControl> <FormMessage /> </FormItem> )}/>
+                <FormField control={form.control} name="pincode" render={({ field }) => ( <FormItem> <FormLabel>Pincode</FormLabel> <FormControl> <Input placeholder="400001" {...field} /> </FormControl> <FormMessage /> </FormItem> )}/>
+              </div>
+              <Button type="submit">Save Changes</Button>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
+  )
+
+  const renderAdminForm = () => (
+     <Card>
+        <CardHeader>
+            <CardTitle>Admin Information</CardTitle>
+            <CardDescription>Update your admin profile details here.</CardDescription>
+        </CardHeader>
+        <CardContent>
+            <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField control={form.control} name="fullName" render={({ field }) => ( <FormItem> <FormLabel>Full Name</FormLabel> <FormControl> <Input placeholder="Admin User" {...field} /> </FormControl> <FormMessage /> </FormItem> )}/>
+                <FormField control={form.control} name="username" render={({ field }) => ( <FormItem> <FormLabel>Username</FormLabel> <FormControl> <Input placeholder="admin" {...field} /> </FormControl> <FormMessage /> </FormItem> )}/>
+                </div>
+                <FormField control={form.control} name="email" render={({ field }) => ( <FormItem> <FormLabel>Email</FormLabel> <FormControl> <Input placeholder="admin@gason.com" {...field} /> </FormControl> <FormMessage /> </FormItem> )}/>
+                <Button type="submit">Save Changes</Button>
+            </form>
+            </Form>
+        </CardContent>
+     </Card>
+  )
 
   return (
     <AppShell>
@@ -174,190 +166,7 @@ export default function ProfilePage() {
             </p>
           </div>
         </div>
-
-        {userRole === 'customer' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Customer Information</CardTitle>
-              <CardDescription>
-                Update your personal and address details here.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...customerForm}>
-                <form
-                  onSubmit={customerForm.handleSubmit(onCustomerSubmit)}
-                  className="space-y-4"
-                >
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <FormField
-                      control={customerForm.control}
-                      name="fullName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Full Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="John Doe" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={customerForm.control}
-                      name="phone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Phone Number</FormLabel>
-                          <FormControl>
-                            <Input placeholder="9876543210" {...field} disabled />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                   <FormField
-                      control={customerForm.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email Address</FormLabel>
-                          <FormControl>
-                            <Input placeholder="john.doe@example.com" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  <FormField
-                    control={customerForm.control}
-                    name="address1"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Address Line 1</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Flat, House no., Building, Company, Apartment"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={customerForm.control}
-                    name="address2"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Address Line 2 (Optional)</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Area, Colony, Street, Sector, Village"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <FormField
-                      control={customerForm.control}
-                      name="city"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>City</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Mumbai" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={customerForm.control}
-                      name="pincode"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Pincode</FormLabel>
-                          <FormControl>
-                            <Input placeholder="400001" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <Button type="submit">Save Changes</Button>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
-        )}
-
-        {userRole === 'admin' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Admin Information</CardTitle>
-              <CardDescription>
-                Update your admin profile details here.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...adminForm}>
-                <form
-                  onSubmit={adminForm.handleSubmit(onAdminSubmit)}
-                  className="space-y-4"
-                >
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={adminForm.control}
-                      name="fullName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Full Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Admin User" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={adminForm.control}
-                      name="username"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Username</FormLabel>
-                          <FormControl>
-                            <Input placeholder="admin" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                   <FormField
-                    control={adminForm.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input placeholder="admin@gason.com" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit">Save Changes</Button>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
-        )}
+        {role === 'customer' ? renderCustomerForm() : renderAdminForm()}
       </div>
     </AppShell>
   );

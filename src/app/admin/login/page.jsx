@@ -18,11 +18,11 @@ export default function AdminLoginPage() {
   const router = useRouter();
 
   const handleLogin = () => {
-    // In a real app, you'd have auth logic here.
-    // We'll simulate login and redirect to the admin dashboard.
+    // In a real app, you would have proper authentication logic here.
+    // For this demo, we are simulating a successful login.
     localStorage.setItem("userRole", "admin");
+    // The useAuth hook will handle navigation and session management.
     router.push("/admin");
-    router.refresh(); // To re-trigger server components and layout logic
   };
 
   return (

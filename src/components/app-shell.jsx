@@ -1,18 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import * as React from "react";
-import {
-  Flame,
-  History,
-  LayoutDashboard,
-  LogOut,
-  MapPinned,
-  User,
-} from "lucide-react";
+import { usePathname } from "next/navigation";
+import { Flame, History, LayoutDashboard, LogOut, MapPinned, User } from "lucide-react";
 
-import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
 import {
   SidebarProvider,
   Sidebar,
@@ -36,79 +28,29 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "./ui/button";
 
-const menuItems = [
-  { href: "/", label: "Book Cylinder", icon: Flame, role: "customer" },
-  { href: "/track", label: "Track Order", icon: MapPinned, role: "customer" },
-  { href: "/history", label: "Order History", icon: History, role: "customer" },
-  { href: "/admin", label: "Admin Dashboard", icon: LayoutDashboard, role: "admin" },
+const customerMenuItems = [
+  { href: "/", label: "Book Cylinder", icon: Flame },
+  { href: "/track", label: "Track Order", icon: MapPinned },
+  { href: "/history", label: "Order History", icon: History },
+];
+
+const adminMenuItems = [
+  { href: "/admin", label: "Admin Dashboard", icon: LayoutDashboard },
 ];
 
 export function AppShell({ children }) {
   const pathname = usePathname();
-  const router = useRouter();
-  const [userRole, setUserRole] = React.useState(null);
-  const [userName, setUserName] = React.useState('');
-  const [userEmail, setUserEmail] = React.useState('');
-  const [isMounted, setIsMounted] = React.useState(false);
+  const { user, role, logout, isLoading } = useAuth();
 
-  const loadUserDataAndAuth = React.useCallback(() => {
-    const role = localStorage.getItem("userRole");
-    setUserRole(role);
-
-    if (role === 'admin') {
-      const storedProfile = localStorage.getItem('adminProfile');
-      const profile = storedProfile ? JSON.parse(storedProfile) : { fullName: 'Admin User', email: 'admin@gason.com' };
-      setUserName(profile.fullName);
-      setUserEmail(profile.email || 'admin@gason.com');
-    } else if (role === 'customer') {
-      const storedProfile = localStorage.getItem('customerProfile');
-      const profile = storedProfile ? JSON.parse(storedProfile) : { fullName: 'Customer', email: '' };
-      setUserName(profile.fullName);
-      setUserEmail(profile.email || '');
-    }
-
-    // Auth redirection logic
-    if (!role) {
-      router.push('/login');
-    } else if (role === 'customer' && pathname.startsWith('/admin')) {
-      router.push('/');
-    } else if (role === 'admin' && !pathname.startsWith('/admin') && pathname !== '/profile') {
-      router.push('/admin');
-    }
-  }, [pathname, router]);
-
-  React.useEffect(() => {
-    setIsMounted(true);
-    loadUserDataAndAuth();
-
-    // Listen for profile updates to reload data
-    window.addEventListener('profileUpdated', loadUserDataAndAuth);
-
-    return () => {
-      window.removeEventListener('profileUpdated', loadUserDataAndAuth);
-    };
-  }, [loadUserDataAndAuth]);
-
-  const handleLogout = () => {
-    const role = localStorage.getItem("userRole");
-    localStorage.removeItem("userRole");
-    if (role === 'admin') {
-      localStorage.removeItem("adminProfile");
-      router.push('/admin/login');
-    } else {
-      localStorage.removeItem("customerProfile");
-      localStorage.removeItem("userId");
-      router.push('/login');
-    }
-    setUserRole(null);
-  };
-
-  // Render nothing until client-side hydration is complete and role is determined
-  if (!isMounted || !userRole) {
+  // Don't render anything until the auth state is confirmed,
+  // to prevent content flashing or showing pages to unauthorized users.
+  if (isLoading || !role || !user) {
     return null;
   }
   
-  const filteredMenuItems = menuItems.filter(item => item.role === userRole);
+  const menuItems = role === "admin" ? adminMenuItems : customerMenuItems;
+  const userName = user.fullName;
+  const userEmail = user.email;
   
   return (
     <SidebarProvider>
@@ -121,7 +63,7 @@ export function AppShell({ children }) {
         </SidebarHeader>
         <SidebarContent>
           <SidebarMenu>
-            {filteredMenuItems.map((item) => (
+            {menuItems.map((item) => (
               <SidebarMenuItem key={item.href}>
                 <SidebarMenuButton
                   asChild
@@ -154,7 +96,6 @@ export function AppShell({ children }) {
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium leading-none">{userName}</p>
-
                   <p className="text-xs leading-none text-muted-foreground">
                     {userEmail}
                   </p>
@@ -168,7 +109,7 @@ export function AppShell({ children }) {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout}>
+              <DropdownMenuItem onClick={logout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>
@@ -180,7 +121,7 @@ export function AppShell({ children }) {
         <header className="flex items-center justify-between p-2 border-b md:justify-end">
           <SidebarTrigger className="md:hidden" />
           <div className="pr-2">
-            {/* Can add header items here */}
+            {/* Header items can be added here */}
           </div>
         </header>
         {children}

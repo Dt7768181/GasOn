@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -33,10 +32,13 @@ import {
 } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function BookingPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { user, role } = useAuth();
+
   const [cylinderTypes, setCylinderTypes] = React.useState([]);
   const [loadingCylinders, setLoadingCylinders] = React.useState(true);
   const [selectedCylinder, setSelectedCylinder] = React.useState("14.2kg");
@@ -69,10 +71,7 @@ export default function BookingPage() {
   }, [toast]);
 
   const handleBooking = async () => {
-    const userId = localStorage.getItem("userId");
-    const customerProfileString = localStorage.getItem("customerProfile");
-
-    if (!userId || !customerProfileString) {
+    if (role !== "customer" || !user) {
       toast({
         title: "Please Login",
         description: "You need to be logged in to book a cylinder.",
@@ -91,7 +90,6 @@ export default function BookingPage() {
       return;
     }
 
-    const customerProfile = JSON.parse(customerProfileString);
     const cylinderDetails = cylinderTypes.find(
       (c) => c.id === selectedCylinder
     );
@@ -113,9 +111,9 @@ export default function BookingPage() {
 
       await addDoc(collection(db, "bookings"), {
         id: orderId,
-        userId: userId,
-        customer: customerProfile.fullName,
-        customerEmail: customerProfile.email,
+        userId: user.phone, // Use phone from auth user object
+        customer: user.fullName, // Use fullName from auth user object
+        customerEmail: user.email,
         date: date.toISOString().split("T")[0],
         time: timeSlot,
         type: cylinderDetails.name,
