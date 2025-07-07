@@ -50,11 +50,13 @@ export default function ProfilePage() {
   const { toast } = useToast();
   const { user, role, isLoading } = useAuth();
 
+  const currentSchema = role === 'admin' ? adminProfileSchema : profileSchema;
+
   const form = useForm({
-    resolver: role === 'admin' ? zodResolver(adminProfileSchema) : zodResolver(profileSchema),
+    resolver: zodResolver(currentSchema),
+    defaultValues: user || {},
   });
   
-  // When the user data is loaded by the auth hook, reset the form with the new data.
   React.useEffect(() => {
     if (user) {
       form.reset(user);
@@ -63,7 +65,8 @@ export default function ProfilePage() {
 
 
   async function onSubmit(values) {
-    // Notify other components (like AppShell) that the profile has changed.
+    if (typeof window === "undefined") return;
+
     const dispatchProfileUpdate = () => window.dispatchEvent(new Event("profileUpdated"));
     
     try {
@@ -73,8 +76,8 @@ export default function ProfilePage() {
           
           const customerDocRef = doc(db, 'customers', userId);
           await updateDoc(customerDocRef, values);
+          localStorage.setItem('customerProfile', JSON.stringify(values));
       } else if (role === 'admin') {
-          // For the demo, admin profile is saved to local storage
           localStorage.setItem('adminProfile', JSON.stringify(values));
       }
       
@@ -98,8 +101,24 @@ export default function ProfilePage() {
     return (
       <AppShell>
         <div className="flex-1 p-4 md:p-8 space-y-4">
-            <Skeleton className="h-10 w-1/4" />
-            <Skeleton className="h-64 w-full" />
+            <div className="space-y-2">
+                <Skeleton className="h-8 w-1/4" />
+                <Skeleton className="h-4 w-1/2" />
+            </div>
+            <Card>
+                <CardHeader>
+                    <Skeleton className="h-6 w-1/3" />
+                    <Skeleton className="h-4 w-2/3" />
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-10 w-full" />
+                    </div>
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                </CardContent>
+            </Card>
         </div>
       </AppShell>
     );
@@ -127,7 +146,7 @@ export default function ProfilePage() {
                 <FormField control={form.control} name="city" render={({ field }) => ( <FormItem> <FormLabel>City</FormLabel> <FormControl> <Input placeholder="Mumbai" {...field} /> </FormControl> <FormMessage /> </FormItem> )}/>
                 <FormField control={form.control} name="pincode" render={({ field }) => ( <FormItem> <FormLabel>Pincode</FormLabel> <FormControl> <Input placeholder="400001" {...field} /> </FormControl> <FormMessage /> </FormItem> )}/>
               </div>
-              <Button type="submit">Save Changes</Button>
+              <Button type="submit" disabled={form.formState.isSubmitting}>Save Changes</Button>
             </form>
           </Form>
         </CardContent>
@@ -148,7 +167,7 @@ export default function ProfilePage() {
                 <FormField control={form.control} name="username" render={({ field }) => ( <FormItem> <FormLabel>Username</FormLabel> <FormControl> <Input placeholder="admin" {...field} /> </FormControl> <FormMessage /> </FormItem> )}/>
                 </div>
                 <FormField control={form.control} name="email" render={({ field }) => ( <FormItem> <FormLabel>Email</FormLabel> <FormControl> <Input placeholder="admin@gason.com" {...field} /> </FormControl> <FormMessage /> </FormItem> )}/>
-                <Button type="submit">Save Changes</Button>
+                <Button type="submit" disabled={form.formState.isSubmitting}>Save Changes</Button>
             </form>
             </Form>
         </CardContent>

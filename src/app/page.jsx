@@ -70,6 +70,16 @@ export default function BookingPage() {
     fetchCylinders();
   }, [toast]);
 
+  const currentCylinder = React.useMemo(
+    () => cylinderTypes.find((c) => c.id === selectedCylinder),
+    [cylinderTypes, selectedCylinder]
+  );
+
+  const totalPrice = React.useMemo(() => {
+    if (!currentCylinder) return null;
+    return parseFloat(currentCylinder.price) + currentCylinder.deliveryCharge;
+  }, [currentCylinder]);
+
   const handleBooking = async () => {
     if (role !== "customer" || !user) {
       toast({
@@ -90,11 +100,7 @@ export default function BookingPage() {
       return;
     }
 
-    const cylinderDetails = cylinderTypes.find(
-      (c) => c.id === selectedCylinder
-    );
-
-    if (!cylinderDetails || cylinderDetails.stock <= 0) {
+    if (!currentCylinder || currentCylinder.stock <= 0) {
       toast({
         title: "Out of Stock",
         description: "This cylinder type is currently unavailable.",
@@ -103,22 +109,19 @@ export default function BookingPage() {
       return;
     }
 
-    const totalAmount =
-      parseFloat(cylinderDetails.price) + cylinderDetails.deliveryCharge;
-
     try {
       const orderId = `GAS-${Math.floor(10000 + Math.random() * 90000)}`;
 
       await addDoc(collection(db, "bookings"), {
         id: orderId,
-        userId: user.phone, // Use phone from auth user object
-        customer: user.fullName, // Use fullName from auth user object
+        userId: user.phone,
+        customer: user.fullName,
         customerEmail: user.email,
         date: date.toISOString().split("T")[0],
         time: timeSlot,
-        type: cylinderDetails.name,
+        type: currentCylinder.name,
         cylinderId: selectedCylinder,
-        amount: totalAmount,
+        amount: totalPrice,
         status: "Pending",
         createdAt: serverTimestamp(),
       });
@@ -138,11 +141,6 @@ export default function BookingPage() {
       });
     }
   };
-
-  const currentCylinder = cylinderTypes.find((c) => c.id === selectedCylinder);
-  const totalPrice = currentCylinder
-    ? parseFloat(currentCylinder.price) + currentCylinder.deliveryCharge
-    : null;
 
   return (
     <AppShell>
@@ -287,7 +285,7 @@ export default function BookingPage() {
                 </div>
                 <div className="flex justify-between">
                   <span>Price</span>
-                  <span>₹{currentCylinder?.price || "N/A"}</span>
+                  <span>₹{currentCylinder?.price?.toFixed(2) || "N/A"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Delivery Charges</span>

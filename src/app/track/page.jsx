@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -19,87 +18,56 @@ import {
   PackageCheck,
   BookmarkCheck,
   XCircle,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { db } from "../../../firebase-config.js";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const statusSteps = [
-  {
-    name: "Pending",
-    icon: CircleDot,
-    description: "Your booking is received and is waiting for confirmation.",
-  },
-  {
-    name: "Booked",
-    icon: BookmarkCheck,
-    description: "Your booking is confirmed and will be processed shortly.",
-  },
-  {
-    name: "Confirmed",
-    icon: CircleCheck,
-    description: "Your payment has been received and your booking is confirmed.",
-  },
-  {
-    name: "Out for Delivery",
-    icon: Truck,
-    description: "Your cylinder is on its way to your address.",
-  },
-  {
-    name: "Delivered",
-    icon: PackageCheck,
-    description: "Your cylinder has been successfully delivered.",
-  },
+  { name: "Pending", icon: CircleDot, description: "Your booking is received and is waiting for confirmation." },
+  { name: "Booked", icon: BookmarkCheck, description: "Your booking is confirmed and will be processed shortly." },
+  { name: "Confirmed", icon: CircleCheck, description: "Your payment has been received and your booking is confirmed." },
+  { name: "Out for Delivery", icon: Truck, description: "Your cylinder is on its way to your address." },
+  { name: "Delivered", icon: PackageCheck, description: "Your cylinder has been successfully delivered." },
 ];
 
 export default function TrackPage() {
   const [bookingId, setBookingId] = useState("");
-  const [currentStatus, setCurrentStatus] = useState(null);
   const [bookingDetails, setBookingDetails] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const handleTrack = async () => {
     if (!bookingId) {
-      toast({
-        title: "Error",
-        description: "Please enter a booking ID.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Please enter a booking ID.", variant: "destructive" });
       return;
     }
 
+    setIsLoading(true);
     setBookingDetails(null);
-    setCurrentStatus(null);
 
     try {
-      const q = query(
-        collection(db, "bookings"),
-        where("id", "==", bookingId.trim())
-      );
+      const q = query(collection(db, "bookings"), where("id", "==", bookingId.trim()));
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
-        toast({
-          title: "Not Found",
-          description: `No booking found with ID: ${bookingId}`,
-          variant: "destructive",
-        });
+        toast({ title: "Not Found", description: `No booking found with ID: ${bookingId}`, variant: "destructive" });
       } else {
         const bookingData = querySnapshot.docs[0].data();
         setBookingDetails(bookingData);
-        setCurrentStatus(bookingData.status);
       }
     } catch (error) {
       console.error("Error tracking booking:", error);
-      toast({
-        title: "Error",
-        description: "An error occurred while tracking the booking.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "An error occurred while tracking the booking.", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
     }
   };
-
+  
+  const currentStatus = bookingDetails?.status;
   const activeIndex = statusSteps.findIndex(
     (step) => step.name === currentStatus
   );
@@ -128,14 +96,33 @@ export default function TrackPage() {
                 placeholder="e.g., GAS-12345"
                 value={bookingId}
                 onChange={(e) => setBookingId(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleTrack()}
               />
-              <Button onClick={handleTrack}>Track</Button>
+              <Button onClick={handleTrack} disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Track
+              </Button>
             </div>
           </CardContent>
         </Card>
 
-        {currentStatus && bookingDetails && (
-          bookingDetails.status === "Cancelled" || bookingDetails.status === "Cancelled - Out of Stock" ? (
+        {isLoading && (
+            <Card>
+                <CardHeader>
+                    <CardTitle><Skeleton className="h-7 w-48" /></CardTitle>
+                    <CardDescription className="space-y-2 pt-1">
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-2/3" />
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <Skeleton className="h-32 w-full" />
+                </CardContent>
+            </Card>
+        )}
+
+        {bookingDetails && !isLoading && (
+          bookingDetails.status.startsWith("Cancelled") ? (
             <Card>
               <CardHeader className="text-center">
                 <div className="flex justify-center items-center mb-2">
@@ -147,7 +134,6 @@ export default function TrackPage() {
                 <CardDescription>
                   This booking ({bookingDetails.id}) has been cancelled.
                   {bookingDetails.status === 'Cancelled - Out of Stock' && ' This was due to the item being out of stock.'}
-                  If you have any questions, please contact support.
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -156,27 +142,12 @@ export default function TrackPage() {
               <CardHeader>
                 <CardTitle>Booking Status</CardTitle>
                 <CardDescription>
-                  <p>
-                    Booking ID:{" "}
-                    <span className="font-semibold">{bookingDetails.id}</span>
-                  </p>
-                  <p>
-                    Customer:{" "}
-                    <span className="font-semibold">
-                      {bookingDetails.customer}
-                    </span>
-                  </p>
-                  <p>
-                    Date:{" "}
-                    <span className="font-semibold">{bookingDetails.date}</span>
-                  </p>
+                  <p>ID: <span className="font-semibold text-primary">{bookingDetails.id}</span> | Customer: <span className="font-semibold">{bookingDetails.customer}</span></p>
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="relative">
-                  {/* Dotted line */}
                   <div className="absolute left-5 top-5 bottom-5 w-0.5 bg-border -z-10" />
-
                   <ul className="space-y-8">
                     {statusSteps.map((step, index) => {
                       const isActive = index <= activeIndex;
@@ -193,14 +164,7 @@ export default function TrackPage() {
                             <step.icon className="h-5 w-5" />
                           </div>
                           <div className="ml-4">
-                            <h3
-                              className={cn(
-                                "font-semibold",
-                                isActive
-                                  ? "text-foreground"
-                                  : "text-muted-foreground"
-                              )}
-                            >
+                            <h3 className={cn("font-semibold", isActive ? "text-foreground" : "text-muted-foreground")}>
                               {step.name}
                             </h3>
                             <p className="text-sm text-muted-foreground">

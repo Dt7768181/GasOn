@@ -45,7 +45,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
+import { cn, getBadgeVariant } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const statusSteps = [
@@ -56,6 +56,19 @@ const statusSteps = [
   "Delivered",
 ];
 
+const BookingSkeletonRow = () => (
+  <TableRow>
+    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+    <TableCell><Skeleton className="h-5 w-28" /></TableCell>
+    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+    <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
+    <TableCell className="text-right"><Skeleton className="h-8 w-20 ml-auto" /></TableCell>
+  </TableRow>
+);
+
 export default function AdminPage() {
   const [bookings, setBookings] = React.useState([]);
   const [loadingBookings, setLoadingBookings] = React.useState(true);
@@ -63,97 +76,70 @@ export default function AdminPage() {
   const [loadingCylinders, setLoadingCylinders] = React.useState(true);
   const { toast } = useToast();
 
-  React.useEffect(() => {
-    const fetchBookings = async () => {
-      setLoadingBookings(true);
-      try {
-        const q = query(
-          collection(db, "bookings"),
-          orderBy("createdAt", "desc")
-        );
-        const querySnapshot = await getDocs(q);
-        const fetchedBookings = querySnapshot.docs.map((doc) => ({
-          ...doc.data(),
-          docId: doc.id,
-        }));
-        setBookings(fetchedBookings);
-      } catch (error) {
-        console.error("Error fetching bookings:", error);
-      } finally {
-        setLoadingBookings(false);
-      }
-    };
-
-    const loadCylinderData = async () => {
-      setLoadingCylinders(true);
-      const cylindersRef = collection(db, "cylinders");
-      try {
-        const querySnapshot = await getDocs(cylindersRef);
-        if (querySnapshot.empty) {
-          toast({
-            title: "Initializing Cylinder Stock",
-            description: "First-time setup: creating cylinder inventory.",
-          });
-          const initialCylinders = [
-            {
-              id: "5kg",
-              name: "5kg Cylinder",
-              stock: 150,
-              price: 450,
-              deliveryCharge: 50,
-              description: "Ideal for small families and bachelors.",
-            },
-            {
-              id: "14.2kg",
-              name: "14.2kg Cylinder",
-              stock: 320,
-              price: 1100,
-              deliveryCharge: 100,
-              description: "Standard household cylinder for regular use.",
-            },
-            {
-              id: "19kg",
-              name: "19kg Cylinder",
-              stock: 85,
-              price: 2200,
-              deliveryCharge: 500,
-              description: "Commercial size, suitable for restaurants.",
-            },
-          ];
-          for (const cyl of initialCylinders) {
-            await setDoc(doc(db, "cylinders", cyl.id), cyl);
-          }
-          setCylinders(initialCylinders.map((c) => ({ ...c, type: c.name })));
-        } else {
-          const fetchedCylinders = querySnapshot.docs.map((doc) => ({
-            ...doc.data(),
-            id: doc.id,
-            type: doc.data().name,
-          }));
-          setCylinders(fetchedCylinders);
-        }
-      } catch (error) {
-        console.error("Error fetching/initializing cylinders:", error);
+  const fetchBookings = React.useCallback(async () => {
+    setLoadingBookings(true);
+    try {
+      const q = query(
+        collection(db, "bookings"),
+        orderBy("createdAt", "desc")
+      );
+      const querySnapshot = await getDocs(q);
+      const fetchedBookings = querySnapshot.docs.map((doc) => ({
+        ...doc.data(),
+        docId: doc.id,
+      }));
+      setBookings(fetchedBookings);
+    } catch (error) {
+      console.error("Error fetching bookings:", error);
+    } finally {
+      setLoadingBookings(false);
+    }
+  }, []);
+  
+  const loadCylinderData = React.useCallback(async () => {
+    setLoadingCylinders(true);
+    const cylindersRef = collection(db, "cylinders");
+    try {
+      const querySnapshot = await getDocs(cylindersRef);
+      if (querySnapshot.empty) {
         toast({
-          title: "Error",
-          description: "Could not load cylinder data.",
-          variant: "destructive",
+          title: "Initializing Cylinder Stock",
+          description: "First-time setup: creating cylinder inventory.",
         });
-      } finally {
-        setLoadingCylinders(false);
+        const initialCylinders = [
+          { id: "5kg", name: "5kg Cylinder", stock: 150, price: 450, deliveryCharge: 50, description: "Ideal for small families and bachelors." },
+          { id: "14.2kg", name: "14.2kg Cylinder", stock: 320, price: 1100, deliveryCharge: 100, description: "Standard household cylinder for regular use." },
+          { id: "19kg", name: "19kg Cylinder", stock: 85, price: 2200, deliveryCharge: 500, description: "Commercial size, suitable for restaurants." },
+        ];
+        for (const cyl of initialCylinders) {
+          await setDoc(doc(db, "cylinders", cyl.id), cyl);
+        }
+        setCylinders(initialCylinders.map((c) => ({ ...c, type: c.name })));
+      } else {
+        const fetchedCylinders = querySnapshot.docs.map((doc) => ({
+          ...doc.data(),
+          id: doc.id,
+          type: doc.data().name,
+        }));
+        setCylinders(fetchedCylinders);
       }
-    };
+    } catch (error) {
+      console.error("Error fetching/initializing cylinders:", error);
+      toast({ title: "Error", description: "Could not load cylinder data.", variant: "destructive" });
+    } finally {
+      setLoadingCylinders(false);
+    }
+  }, [toast]);
 
+  React.useEffect(() => {
     fetchBookings();
     loadCylinderData();
-  }, [toast]);
+  }, [fetchBookings, loadCylinderData]);
 
   const handleStatusUpdate = async (docId, newStatus) => {
     try {
       const bookingRef = doc(db, "bookings", docId);
-      await updateDoc(bookingRef, {
-        status: newStatus,
-      });
+      await updateDoc(bookingRef, { status: newStatus });
 
       setBookings((prevBookings) =>
         prevBookings.map((booking) =>
@@ -175,22 +161,6 @@ export default function AdminPage() {
     }
   };
 
-  const getBadgeVariant = (status) => {
-    switch (status) {
-      case "Pending":
-      case "Cancelled":
-      case "Cancelled - Out of Stock":
-        return "destructive";
-      case "Booked":
-      case "Confirmed":
-        return "secondary";
-      case "Out for Delivery":
-        return "default";
-      default:
-        return "default";
-    }
-  };
-
   return (
     <AppShell>
       <div className="flex-1 space-y-8 p-4 md:p-8">
@@ -209,7 +179,6 @@ export default function AdminPage() {
           <TabsList>
             <TabsTrigger value="bookings">Bookings</TabsTrigger>
             <TabsTrigger value="cylinders">Cylinders</TabsTrigger>
-            <TabsTrigger value="deliveries">Deliveries</TabsTrigger>
           </TabsList>
           <TabsContent value="bookings" className="space-y-4">
             <Card>
@@ -220,31 +189,26 @@ export default function AdminPage() {
                     Manage and track all incoming orders.
                   </CardDescription>
                 </div>
-                <Button>
-                  <FilePlus2 className="mr-2 h-4 w-4" /> Create Booking
-                </Button>
               </CardHeader>
               <CardContent>
-                {loadingBookings ? (
-                  <p className="text-center text-muted-foreground">
-                    Loading bookings...
-                  </p>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Order ID</TableHead>
-                        <TableHead>Customer</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Time Slot</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Payment</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {bookings.map((booking) => (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Order ID</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Time Slot</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Payment</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loadingBookings ? (
+                      [...Array(5)].map((_, i) => <BookingSkeletonRow key={i} />)
+                    ) : (
+                      bookings.map((booking) => (
                         <TableRow key={booking.id}>
                           <TableCell>{booking.id}</TableCell>
                           <TableCell>{booking.customer}</TableCell>
@@ -256,8 +220,7 @@ export default function AdminPage() {
                             <Badge
                               variant={getBadgeVariant(booking.status)}
                               className={cn(
-                                booking.status === "Delivered" &&
-                                  "bg-accent text-accent-foreground hover:bg-accent/80"
+                                booking.status === "Delivered" && "text-accent-foreground"
                               )}
                             >
                               {booking.status}
@@ -290,10 +253,10 @@ export default function AdminPage() {
                             </DropdownMenu>
                           </TableCell>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
           </TabsContent>
@@ -306,9 +269,6 @@ export default function AdminPage() {
                     View and manage cylinder stock and prices.
                   </CardDescription>
                 </div>
-                <Button>
-                  <PlusCircle className="mr-2 h-4 w-4" /> Add Cylinder Type
-                </Button>
               </CardHeader>
               <CardContent>
                 {loadingCylinders ? (
@@ -324,7 +284,6 @@ export default function AdminPage() {
                         <TableHead>Cylinder Type</TableHead>
                         <TableHead>In Stock</TableHead>
                         <TableHead>Price</TableHead>
-                        <TableHead>Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -335,11 +294,6 @@ export default function AdminPage() {
                           </TableCell>
                           <TableCell>{cylinder.stock}</TableCell>
                           <TableCell>₹{cylinder.price.toFixed(2)}</TableCell>
-                          <TableCell>
-                            <Button variant="outline" size="sm">
-                              Edit
-                            </Button>
-                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

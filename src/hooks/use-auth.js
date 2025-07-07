@@ -20,6 +20,8 @@ export function useAuth() {
 
   // Function to log the user out
   const logout = useCallback(() => {
+    if (typeof window === "undefined") return;
+
     const userRole = localStorage.getItem("userRole");
     
     // Clear all session data
@@ -41,6 +43,8 @@ export function useAuth() {
   // This function is the single source of truth for loading user data and enforcing auth rules.
   const loadUserAndVerifyAuth = useCallback(async () => {
     setIsLoading(true);
+    if (typeof window === "undefined") return;
+
     const userRole = localStorage.getItem("userRole");
     const userId = localStorage.getItem("userId");
 
@@ -49,12 +53,16 @@ export function useAuth() {
     let userProfile = null;
     try {
         if (userRole === "customer" && userId) {
-            const docRef = doc(db, "customers", userId);
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-                userProfile = docSnap.data();
-                // Cache profile in local storage for faster loads
-                localStorage.setItem("customerProfile", JSON.stringify(userProfile));
+            const cachedProfile = localStorage.getItem("customerProfile");
+            if (cachedProfile) {
+                userProfile = JSON.parse(cachedProfile);
+            } else {
+                const docRef = doc(db, "customers", userId);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    userProfile = docSnap.data();
+                    localStorage.setItem("customerProfile", JSON.stringify(userProfile));
+                }
             }
         } else if (userRole === "admin") {
             // Admin profile is static for this app
@@ -62,8 +70,7 @@ export function useAuth() {
         }
     } catch(e) {
         console.error("Failed to fetch user profile:", e);
-        // If there's an error (e.g., network), log out to be safe
-        logout();
+        logout(); // Logout on error to be safe
     }
     
     setUser(userProfile);
@@ -71,13 +78,10 @@ export function useAuth() {
     // Page access rules based on role
     const isAuthPage = pathname.includes('/login') || pathname.includes('/register');
     if (!userRole && !isAuthPage) {
-      // If not logged in and not on an auth page, redirect to login
       router.push("/login");
     } else if (userRole === "customer" && pathname.startsWith("/admin")) {
-      // Customers cannot access admin pages
       router.push("/");
     } else if (userRole === "admin" && !pathname.startsWith("/admin") && pathname !== '/profile') {
-      // Admins are redirected to their dashboard from customer pages
       router.push("/admin");
     }
 
@@ -86,17 +90,15 @@ export function useAuth() {
 
 
   useEffect(() => {
-    // Load user data on initial component mount and on route changes.
     loadUserAndVerifyAuth();
 
-    // Also reload data if profile is updated elsewhere in the app.
     const handleProfileUpdate = () => loadUserAndVerifyAuth();
     window.addEventListener('profileUpdated', handleProfileUpdate);
     
     return () => {
       window.removeEventListener('profileUpdated', handleProfileUpdate);
     };
-  }, [pathname, loadUserAndVerifyAuth]); // Rerun when path changes
+  }, [pathname, loadUserAndVerifyAuth]); // Rerun on path changes
 
   return { user, role, logout, isLoading };
 }

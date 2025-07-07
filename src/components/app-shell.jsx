@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Flame, History, LayoutDashboard, LogOut, MapPinned, User } from "lucide-react";
-
 import { useAuth } from "@/hooks/use-auth";
 import {
   SidebarProvider,
@@ -27,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "./ui/button";
+import { Skeleton } from "./ui/skeleton";
 
 const customerMenuItems = [
   { href: "/", label: "Book Cylinder", icon: Flame },
@@ -38,19 +38,38 @@ const adminMenuItems = [
   { href: "/admin", label: "Admin Dashboard", icon: LayoutDashboard },
 ];
 
+const AppShellSkeleton = () => (
+    <div className="flex min-h-screen w-full">
+        <div className="hidden md:block border-r w-64 p-2">
+            <div className="flex items-center gap-2 p-2">
+                <Skeleton className="w-8 h-8" />
+                <Skeleton className="h-6 w-24" />
+            </div>
+            <div className="flex flex-col gap-2 mt-4">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+            </div>
+        </div>
+        <main className="flex-1 p-4">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-64 w-full mt-4" />
+        </main>
+    </div>
+);
+
+
 export function AppShell({ children }) {
   const pathname = usePathname();
   const { user, role, logout, isLoading } = useAuth();
 
-  // Don't render anything until the auth state is confirmed,
-  // to prevent content flashing or showing pages to unauthorized users.
   if (isLoading || !role || !user) {
-    return null;
+    return <AppShellSkeleton />;
   }
   
   const menuItems = role === "admin" ? adminMenuItems : customerMenuItems;
-  const userName = user.fullName;
-  const userEmail = user.email;
+  const userName = user?.fullName || 'User';
+  const userEmail = user?.email;
   
   return (
     <SidebarProvider>
@@ -83,8 +102,8 @@ export function AppShell({ children }) {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="w-full justify-start gap-2 p-2 h-auto">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src="https://placehold.co/40x40.png" alt="@user" />
-                  <AvatarFallback>{userName ? userName.charAt(0).toUpperCase() : 'U'}</AvatarFallback>
+                  <AvatarImage data-ai-hint="profile picture" src="https://placehold.co/40x40.png" alt={userName} />
+                  <AvatarFallback>{userName.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
                 <div className="text-left">
                   <p className="text-sm font-medium">{userName}</p>

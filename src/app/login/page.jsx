@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Flame } from "lucide-react";
+import { Flame, Loader2 } from "lucide-react";
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../../firebase-config.js';
 import { useToast } from "@/hooks/use-toast";
@@ -24,6 +24,7 @@ export default function LoginPage() {
   const { toast } = useToast();
   const [phone, setPhone] = React.useState('');
   const [password, setPassword] = React.useState('password'); // Default for demo
+  const [isLoading, setIsLoading] = React.useState(false);
 
   const handleLogin = async () => {
     if (!phone) {
@@ -35,16 +36,15 @@ export default function LoginPage() {
       return;
     }
     
+    setIsLoading(true);
     try {
-      // In a real app, you would also verify the password against the database.
       const userRef = doc(db, "customers", phone);
       const userDoc = await getDoc(userRef);
 
       if (userDoc.exists()) {
-        // Set user role and ID in local storage to establish a session.
-        // The useAuth hook will handle fetching the full profile and navigation.
         localStorage.setItem("userRole", "customer");
         localStorage.setItem("userId", phone);
+        localStorage.setItem("customerProfile", JSON.stringify(userDoc.data()));
         router.push("/");
       } else {
         toast({
@@ -60,6 +60,8 @@ export default function LoginPage() {
         description: 'An error occurred during login. Please try again.',
         variant: 'destructive',
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -79,14 +81,15 @@ export default function LoginPage() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="phone">Phone Number</Label>
-              <Input id="phone" type="tel" placeholder="9876543210" required value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <Input id="phone" type="tel" placeholder="9876543210" required value={phone} onChange={(e) => setPhone(e.target.value)} disabled={isLoading} />
             </div>
              <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required disabled={isLoading} />
             </div>
           </div>
-          <Button className="w-full mt-6" onClick={handleLogin}>
+          <Button className="w-full mt-6" onClick={handleLogin} disabled={isLoading}>
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Log In
           </Button>
           <div className="mt-4 text-center text-sm">

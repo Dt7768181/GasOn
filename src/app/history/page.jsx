@@ -29,6 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { db } from "../../../firebase-config.js";
 import {
   collection,
@@ -38,9 +39,20 @@ import {
   doc,
   runTransaction,
 } from "firebase/firestore";
-import { cn } from "@/lib/utils";
+import { cn, getBadgeVariant } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
+
+const SkeletonRow = () => (
+  <TableRow>
+    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+    <TableCell><Skeleton className="h-5 w-28" /></TableCell>
+    <TableCell className="text-right"><Skeleton className="h-5 w-16 ml-auto" /></TableCell>
+    <TableCell className="text-center"><Skeleton className="h-8 w-36 mx-auto" /></TableCell>
+    <TableCell className="text-right"><Skeleton className="h-8 w-16 ml-auto" /></TableCell>
+  </TableRow>
+);
 
 export default function HistoryPage() {
   const router = useRouter();
@@ -56,6 +68,7 @@ export default function HistoryPage() {
 
   React.useEffect(() => {
     const fetchOrders = async () => {
+      if (typeof window === "undefined") return;
       const userId = localStorage.getItem("userId");
       if (!userId) {
         setLoading(false);
@@ -93,8 +106,7 @@ export default function HistoryPage() {
 
   const handleCancelBooking = async () => {
     if (!selectedOrder) return;
-    
-    // Fail early if the order is in a state that cannot be cancelled.
+
     if (!canBeCancelled(selectedOrder.status)) {
        toast({
         title: "Cancellation Failed",
@@ -110,25 +122,14 @@ export default function HistoryPage() {
         const bookingRef = doc(db, "bookings", selectedOrder.docId);
         const bookingDoc = await transaction.get(bookingRef);
 
-        if (!bookingDoc.exists()) {
-          throw new Error("Booking not found.");
-        }
-
+        if (!bookingDoc.exists()) throw new Error("Booking not found.");
+        
         const bookingData = bookingDoc.data();
+        if (!canBeCancelled(bookingData.status)) throw new Error("This booking can no longer be cancelled.");
 
-        // Double-check status inside the transaction for safety
-        if (!canBeCancelled(bookingData.status)) {
-          throw new Error("This booking cannot be cancelled.");
-        }
+        const shouldRestock = ["Confirmed", "Booked"].includes(bookingData.status);
 
-        // If the order was confirmed or booked (not pending), it means stock was allocated.
-        // We need to return the cylinder to the inventory.
-        const shouldRestock = bookingData.status === "Confirmed" || bookingData.status === "Booked";
-
-        if (shouldRestock) {
-          if (!bookingData.cylinderId) {
-            console.warn(`Cannot restock for order ${selectedOrder.id}: missing cylinderId.`);
-          } else {
+        if (shouldRestock && bookingData.cylinderId) {
             const cylinderRef = doc(db, "cylinders", bookingData.cylinderId);
             const cylinderDoc = await transaction.get(cylinderRef);
 
@@ -136,16 +137,13 @@ export default function HistoryPage() {
               const newStock = cylinderDoc.data().stock + 1;
               transaction.update(cylinderRef, { stock: newStock });
             } else {
-              console.error(`Cylinder ${bookingData.cylinderId} not found for restocking order ${selectedOrder.id}.`);
+              console.error(`Cylinder ${bookingData.cylinderId} not found for restocking.`);
             }
-          }
         }
-
-        // Finally, update the booking status to "Cancelled"
+        
         transaction.update(bookingRef, { status: "Cancelled" });
       });
 
-      // Update the local state to immediately reflect the change in the UI
       setOrders((prevOrders) =>
         prevOrders.map((o) =>
           o.docId === selectedOrder.docId
@@ -162,28 +160,12 @@ export default function HistoryPage() {
       console.error("Error cancelling booking:", error);
       toast({
         title: "Cancellation Failed",
-        description: error.message || "Could not cancel the booking. Please try again.",
+        description: error.message || "Could not cancel the booking.",
         variant: "destructive",
       });
     } finally {
       setIsAlertOpen(false);
       setSelectedOrder(null);
-    }
-  };
-
-  const getBadgeVariant = (status) => {
-    switch (status) {
-      case "Pending":
-      case "Cancelled":
-      case "Cancelled - Out of Stock":
-        return "destructive";
-      case "Booked":
-      case "Confirmed":
-        return "secondary";
-      case "Out for Delivery":
-        return "default";
-      default:
-        return "default";
     }
   };
 
@@ -217,11 +199,23 @@ export default function HistoryPage() {
             </CardHeader>
             <CardContent>
               {loading ? (
-                <p className="text-center text-muted-foreground">
-                  Loading your order history...
-                </p>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Order ID</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Cylinder Type</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="text-center">Status</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {[...Array(3)].map((_, i) => <SkeletonRow key={i} />)}
+                  </TableBody>
+                </Table>
               ) : orders.length === 0 ? (
-                <p className="text-center text-muted-foreground">
+                <p className="text-center text-muted-foreground py-8">
                   You have no past orders.
                 </p>
               ) : (
@@ -262,7 +256,7 @@ export default function HistoryPage() {
                               variant={getBadgeVariant(order.status)}
                               className={cn(
                                 order.status === "Delivered" &&
-                                  "bg-accent text-accent-foreground hover:bg-accent/80"
+                                  "text-accent-foreground"
                               )}
                             >
                               {order.status}
