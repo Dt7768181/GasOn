@@ -203,7 +203,7 @@ export default function CheckoutPage() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div>
-                  <h3 className="mb-4 text-lg font-medium">Pay with Card (Fake)</h3>
+                  <h3 className="mb-4 text-lg font-medium">Pay with Card</h3>
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="card-number">Card Number</Label>
